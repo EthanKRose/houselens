@@ -27,6 +27,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["houselens_pipeline"]
+# root .gitignore ignores data/ dirs; hatch honours it, so re-include the geo reference CSVs
+artifacts = ["houselens_pipeline/geo/data/*.csv"]
 
 [tool.ruff]
 line-length = 100

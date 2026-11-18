@@ -1,0 +1,3 @@
+# Manual vendor region -> geo_id overrides, applied before any other rule.
+# {source_id: {vendor_region_id: geo_id}}
+{}
