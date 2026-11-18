@@ -1,5 +1,6 @@
 """Vintage writer: append canonical observations to DuckDB without overwriting history."""
 
+import contextlib
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -12,6 +13,8 @@ Status = Literal["ok", "unchanged", "failed"]
 
 # Rows that are new, or whose value/flags differ from observation_latest; `collides` marks rows
 # whose (series, geo, period_start, run_date) key already exists (a same-day re-run).
+# shortcut: a run_date earlier than the latest vintage is still compared against latest and its
+# rows never become latest; upgrade if back-fills are ever needed.
 _CANDIDATES = """
 create or replace temp table _cand as
 select n.*, exists (
@@ -30,6 +33,14 @@ with n as (select series_id, count(distinct geo_id) c from _new group by 1),
      cur as (select series_id, count(distinct geo_id) c from observation_latest group by 1)
 select series_id, n.c, cur.c from n join cur using (series_id)
 where n.c < 0.95 * cur.c order by 1
+"""
+
+# This source's series that have current data but no rows at all in the new frame.
+_ABSENT = """
+select distinct l.series_id from observation_latest l join series s using (series_id)
+where s.source_id = $source_id
+  and not exists (select 1 from _new n where n.series_id = l.series_id)
+order by 1
 """
 
 
@@ -61,6 +72,8 @@ def _write(
     checksum: str,
     run_date: date,
 ) -> tuple[Status, int, str]:
+    if obs.is_empty():
+        return "failed", 0, "empty frame: no observations to write"
     last = con.execute(
         "select file_checksum from ingest_run where source_id = ?"
         " and status in ('ok', 'unchanged') order by finished_at desc limit 1",
@@ -70,9 +83,12 @@ def _write(
         return "unchanged", 0, f"checksum {checksum} matches last good run"
 
     # Arrow PyCapsule lets DuckDB read the Polars frame without a pyarrow dependency
-    con.register("_src", con.from_arrow(obs.__arrow_c_stream__()))
-    con.execute("create or replace temp table _new as select * from _src")
-    con.unregister("_src")
+    con.from_arrow(obs.__arrow_c_stream__()).query(
+        "_src", "create or replace temp table _new as select * from _src"
+    )
+    absent = [r[0] for r in con.execute(_ABSENT, {"source_id": source_id}).fetchall()]
+    if absent:
+        return "failed", 0, f"series absent from new frame: {', '.join(absent)}"
     drops = con.execute(_COVERAGE).fetchall()
     if drops:
         detail = "; ".join(f"{s}: {n} geos vs {c} in observation_latest" for s, n, c in drops)
@@ -128,11 +144,13 @@ def write_vintage(
 
     Rules, in order:
 
+    0. An empty ``obs`` is ``failed`` with 0 rows.
     1. If the most recent ``ok``/``unchanged`` run for ``source_id`` (failed runs never count)
        has the same ``file_checksum``, the result is ``unchanged`` with 0 rows.
     2. For each series present in both ``obs`` and ``observation_latest``, if the new distinct
        ``geo_id`` count is below 95% of the current one, the result is ``failed`` with 0 rows.
-       A series missing from ``obs`` entirely is not checked.
+       Before that, any series of this source (``series.source_id``) with rows in
+       ``observation_latest`` but none in ``obs`` is ``failed`` with 0 rows.
     3. A row is inserted with ``vintage_date = run_date`` only if its
        ``(series_id, geo_id, period_start)`` is new, or its ``value`` (exact float equality)
        or its ``quality_flags`` (order-insensitive) differ from ``observation_latest``; a flags
@@ -142,7 +160,8 @@ def write_vintage(
        same-day re-run), it is skipped and counted in the message; nothing is updated.
 
     All inserts and the ``ingest_run`` row share one transaction. On any error the data is
-    rolled back and a ``failed`` ``ingest_run`` row records the error instead.
+    rolled back and a ``failed`` ``ingest_run`` row records the original error instead, even
+    when ``commit`` itself fails.
 
     Args:
         con: Connection from ``houselens_pipeline.db.connect``.
@@ -163,7 +182,9 @@ def write_vintage(
         con.execute("drop table if exists _cand; drop table if exists _new")
         con.commit()
     except Exception as e:  # never raise for data problems; record the failure instead
-        con.rollback()  # also discards the _new/_cand temp tables
+        # a failed commit has already ended the transaction, so rollback would raise
+        with contextlib.suppress(duckdb.TransactionException):
+            con.rollback()  # also discards the _new/_cand temp tables
         result = IngestResult("failed", 0, f"{type(e).__name__}: {e}")
         _record_run(con, run_id, source_id, started_at, result, checksum)
     return result

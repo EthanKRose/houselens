@@ -5,6 +5,7 @@ import duckdb
 import polars as pl
 import pytest
 
+from houselens_pipeline import ingest
 from houselens_pipeline.db import connect
 from houselens_pipeline.ingest import write_vintage
 
@@ -25,11 +26,12 @@ def _obs(
     value: float = 1.0,
     release_date: date | None = None,
     flags: list[str] | None = None,
+    series_id: str = "s",
 ) -> pl.DataFrame:
     return pl.DataFrame(
         [
             {
-                "series_id": "s",
+                "series_id": series_id,
                 "geo_id": f"CBSA:{i:05d}",
                 "period_start": date(2025, 12, 1),
                 "period_end": date(2025, 12, 31),
@@ -151,3 +153,62 @@ def test_bad_frame_rolls_back_and_records_failure(con: duckdb.DuckDBPyConnection
     assert "Constraint" in r.message
     assert _count(con) == 0
     assert _runs(con) == [("failed", "a", 0)]
+
+
+def test_commit_failure_records_original_error(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = ingest._record_run
+    raced: list[bool] = []
+
+    def racing_record(c: duckdb.DuckDBPyConnection, *args: object) -> None:
+        if not raced:  # another writer commits the same PK mid-transaction
+            raced.append(True)
+            con.cursor().execute(
+                "insert into observation (series_id, geo_id, period_start, period_end, value,"
+                " vintage_date) values ('s', 'CBSA:00000', '2025-12-01', '2025-12-31', 5.0, ?)",
+                [D1],
+            )
+        real(c, *args)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(ingest, "_record_run", racing_record)
+    r = write_vintage(con, "src", _obs(), "a", D1)
+    assert (r.status, r.rows_written) == ("failed", 0)
+    assert "constraint violation" in r.message
+    assert _runs(con) == [("failed", "a", 0)]
+    assert _count(con) == 1  # only the other writer's row
+
+
+def test_empty_frame_fails(con: duckdb.DuckDBPyConnection) -> None:
+    r = write_vintage(con, "src", _obs(n_geos=0), "a", D1)
+    assert (r.status, r.rows_written) == ("failed", 0)
+    assert "empty" in r.message
+    assert _runs(con) == [("failed", "a", 0)]
+
+
+def _catalog(con: duckdb.DuckDBPyConnection, series: dict[str, str]) -> None:
+    con.execute("insert into metric (metric_id, label, unit) values ('m', 'M', 'index')")
+    for src in sorted(set(series.values())):
+        con.execute(
+            "insert into source (source_id, name, publisher, license_note, access_method)"
+            " values (?, 'n', 'p', 'l', 'api')",
+            [src],
+        )
+    for sid, src in series.items():
+        con.execute(
+            "insert into series (series_id, source_id, metric_id, method_family, market,"
+            " seasonal_adj, frequency, methodology_md) values (?, ?, 'm', 'median', 'sale',"
+            " false, 'monthly', 'x')",
+            [sid, src],
+        )
+
+
+def test_series_absent_from_frame_fails(con: duckdb.DuckDBPyConnection) -> None:
+    _catalog(con, {"s": "src", "s2": "src", "x": "other"})
+    write_vintage(con, "other", _obs(series_id="x"), "o", D1)
+    both = pl.concat([_obs(), _obs(series_id="s2")])
+    assert write_vintage(con, "src", both, "a", D1).status == "ok"  # "x" absent is fine
+    r = write_vintage(con, "src", _obs(value=2.0), "b", D2)
+    assert (r.status, r.rows_written) == ("failed", 0)
+    assert "s2" in r.message and "absent" in r.message
+    assert _count(con) == 9
