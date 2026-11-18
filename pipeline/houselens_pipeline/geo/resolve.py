@@ -72,7 +72,8 @@ def resolve_regions(
 ) -> Resolved:
     """Resolve vendor regions: override, then code, then US/state, then metro name key.
 
-    A CBSA name key shared by two or more CBSAs is ambiguous and left unmatched.
+    Codes apply only to level ``CBSA``; an unknown code is unmatched (no name fallback). A CBSA
+    name key shared by two or more CBSAs is ambiguous and left unmatched.
 
     Args:
         source_id: Source whose regions these are.
@@ -81,6 +82,9 @@ def resolve_regions(
 
     Returns:
         The mapping plus the unmatched and rule-skipped input rows.
+
+    Raises:
+        ValueError: An override for ``source_id`` names a geo_id that is not canonical.
     """
     manual = (load_overrides() if overrides is None else overrides).get(source_id, {})
     geo = load_geographies()
@@ -93,26 +97,34 @@ def resolve_regions(
     keys: defaultdict[str, list[str]] = defaultdict(list)
     for g, n in cbsa.select("geo_id", "name").rows():
         keys[normalize_name(n)].append(g)
+    unique = {k: ids[0] for k, ids in keys.items() if len(ids) == 1}
+    valid = set(geo["geo_id"])
+    for rid, g in manual.items():
+        if g not in valid:
+            raise ValueError(f"override {source_id}/{rid} -> {g!r} is not a canonical geo_id")
 
     mapped: list[tuple[str, ...]] = []
     unmatched: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     for r in regions.iter_rows(named=True):
         rid, name, level, code = r["vendor_region_id"], r["vendor_name"], r["level"], r["code"]
-        key = normalize_name(name)
+        cbsa_code = code if level == "CBSA" else None
         if rid in manual:
             hit = (manual[rid], "manual")
-        elif code in msads:
+        elif cbsa_code in msads:
             skipped.append(r)
             continue
-        elif code in cbsa_codes:
-            hit = (f"CBSA:{code}", "cbsa_code")
+        elif cbsa_code in cbsa_codes:
+            hit = (f"CBSA:{cbsa_code}", "cbsa_code")
+        elif cbsa_code is not None:  # stale/unknown code: no name fallback; fix via overrides
+            unmatched.append(r)
+            continue
         elif level == "US":
             hit = ("US", "fips")
-        elif level == "ST" and _clean(name) in states:
+        elif level == "ST" and name is not None and _clean(name) in states:
             hit = (states[_clean(name)], "fips")
-        elif level == "CBSA" and len(keys.get(key, [])) == 1:
-            hit = (keys[key][0], "name_fuzzy")
+        elif level == "CBSA" and name is not None and (key := normalize_name(name)) in unique:
+            hit = (unique[key], "name_fuzzy")
         else:
             unmatched.append(r)
             continue

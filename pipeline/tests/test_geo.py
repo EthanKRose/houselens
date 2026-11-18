@@ -1,4 +1,5 @@
 import polars as pl
+import pytest
 
 from houselens_pipeline.db import connect
 from houselens_pipeline.geo import (
@@ -12,7 +13,7 @@ from houselens_pipeline.geo import (
 GEO = load_geographies()
 
 
-def regions(*rows: tuple[str, str, str, str | None]) -> pl.DataFrame:
+def regions(*rows: tuple[str, str | None, str, str | None]) -> pl.DataFrame:
     return pl.DataFrame(
         rows,
         schema={"vendor_region_id": pl.String, "vendor_name": pl.String, "level": pl.String,
@@ -117,3 +118,37 @@ def test_sync_geographies_roundtrip() -> None:
     assert con.execute("select non_disclosure from geography where geo_id='ST:48'").fetchone() == (
         True,
     )
+
+
+def test_unknown_code_unmatched_no_name_fallback() -> None:
+    name = "Washington-Arlington-Alexandria, DC-VA-MD-WV (MSAD)"
+    r = resolve_regions("fred", regions(("w", name, "CBSA", "47894")))
+    assert r.unmatched["vendor_region_id"].to_list() == ["w"]
+    assert r.mapping.is_empty() and r.skipped_by_rule.is_empty()
+
+
+def test_code_ignored_off_cbsa_level() -> None:
+    r = resolve_regions("fred", regions(("t", "Texas", "ST", "12420")))
+    assert r.mapping.select("geo_id", "match_method").rows() == [("ST:48", "fips")]
+
+
+def test_bad_override_raises() -> None:
+    with pytest.raises(ValueError, match=r"zillow/1 -> 'CBSA:00000'"):
+        resolve_regions(
+            "zillow", regions(("1", "Austin, TX", "CBSA", None)),
+            overrides={"zillow": {"1": "CBSA:00000"}},
+        )  # fmt: skip
+
+
+def test_null_name() -> None:
+    r = resolve_regions(
+        "zillow",
+        regions(("o", None, "CBSA", None), ("c", None, "CBSA", "12420"), ("n", None, "CBSA", None),
+                ("s", None, "ST", None)),
+        overrides={"zillow": {"o": "US"}},
+    )  # fmt: skip
+    assert sorted(r.mapping.select("vendor_region_id", "geo_id").rows()) == [
+        ("c", "CBSA:12420"),
+        ("o", "US"),
+    ]
+    assert sorted(r.unmatched["vendor_region_id"]) == ["n", "s"]
