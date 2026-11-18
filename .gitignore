@@ -1,0 +1,10 @@
+data/
+.venv/
+node_modules/
+.next/
+out/
+web/public/data/
+.env
+.env.*
+__pycache__/
+.DS_Store
