@@ -1,0 +1,14 @@
+# id, explanation, optional series_ids + period_starts (auto-applied when both are present).
+# Events without them are explanation-only registry entries (e.g. row-driven flags).
+- id: cpi_carry_forward_2025_10
+  explanation: >-
+    Rents for October 2025 were carried forward from April 2025, yielding unchanged index
+    values for rent and owners' equivalent rent for October.
+  series_ids: [fred.cpi.rent.sa, fred.cpi.oer.sa]
+  period_starts: ["2025-10-01"]
+- id: cpi_collection_suspended
+  explanation: >-
+    In April, BLS suspended CPI data collection entirely in Lincoln, NE and Provo, UT. In
+    June, BLS suspended collection entirely in Buffalo, NY. Roughly 15 percent of the sample
+    in the other 72 areas also was suspended from collection, on average. BLS did not measure
+    the impact of collection suspensions on subnational and item indexes.
