@@ -1,0 +1,356 @@
+sources:
+  - source_id: fred
+    name: Federal Reserve Economic Data (FRED)
+    publisher: Federal Reserve Bank of St. Louis
+    homepage_url: https://fred.stlouisfed.org
+    access_method: api
+    license_note: >-
+      Mostly public domain, but some series are copyrighted by their owner (for example
+      Case-Shiller); attribute the original owner.
+    attribution: "Data: FRED, Federal Reserve Bank of St. Louis; original sources S&P Dow Jones Indices, Freddie Mac, U.S. Census Bureau and U.S. Bureau of Labor Statistics."
+    enabled: true
+  - source_id: fhfa
+    name: FHFA House Price Index
+    publisher: Federal Housing Finance Agency
+    homepage_url: https://www.fhfa.gov/data/hpi
+    access_method: file
+    license_note: Public domain.
+    attribution: "Data: Federal Housing Finance Agency, House Price Index."
+    enabled: true
+  - source_id: zillow
+    name: Zillow Research Data
+    publisher: Zillow Research
+    homepage_url: https://www.zillow.com/research/data/
+    access_method: file
+    license_note: >-
+      Free for public use with clear attribution. Zillow and Bridge APIs must never be used to
+      build a stored database; only the Zillow Research CSV files are used.
+    attribution: "Data: Zillow Research (ZHVI, ZORI), used with attribution."
+    enabled: true
+  - source_id: realtor
+    name: Realtor.com Research Data
+    publisher: Realtor.com Economic Research
+    homepage_url: https://www.realtor.com/research/data/
+    access_method: file
+    license_note: >-
+      Realtor.com research files are a sanctioned free route; scraping the portal violates its
+      terms. Attribute the source.
+    attribution: "Data: Realtor.com Economic Research (attribution wording to be confirmed)"
+    enabled: true
+  - source_id: redfin
+    name: Redfin Data Center
+    publisher: Redfin (Rocket Companies)
+    homepage_url: https://www.redfin.com/news/data-center/
+    access_method: manual_drop
+    license_note: >-
+      Terms must be reviewed; attribute Redfin and do not redistribute raw files. Manual drop
+      only: the pipeline never fetches redfin.com, and written permission is needed before
+      enabling.
+    attribution: "Data: Redfin Data Center (Redfin, a Rocket Companies business)."
+    enabled: false
+
+metrics:
+  - {metric_id: price_index, label: House price index, unit: index, higher_is: up}
+  - {metric_id: median_sale_price, label: Median sale price, unit: usd, higher_is: up}
+  - {metric_id: typical_home_value, label: Typical home value, unit: usd, higher_is: up}
+  - {metric_id: rent_index, label: Rent index, unit: usd, higher_is: up}
+  - {metric_id: cpi_index, label: CPI index, unit: index, higher_is: up}
+  - {metric_id: mortgage_rate_30y, label: 30-year fixed mortgage rate, unit: pct, higher_is: down}
+  - {metric_id: housing_starts, label: Housing starts, unit: count, higher_is: neutral}
+  - {metric_id: median_list_price, label: Median list price, unit: usd, higher_is: up}
+  - {metric_id: active_listings, label: Active listings, unit: count, higher_is: neutral}
+  - {metric_id: days_on_market, label: Days on market, unit: days, higher_is: neutral}
+  - {metric_id: price_reduced_share, label: Share of listings with price cuts, unit: pct, higher_is: neutral}
+
+series:
+  - series_id: fred.cs.national.sa
+    source_id: fred
+    metric_id: price_index
+    method_family: repeat_sales
+    market: sale
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 60
+    release_date_kind: published
+    vendor_key: CSUSHPISA
+    fixed_geo_id: US
+    methodology_md: >-
+      S&P CoreLogic Case-Shiller national index, a value-weighted arithmetic repeat-sales index
+      published as a three-month moving average. Purchase prices come mostly from county
+      assessor and recorder data and include jumbo and cash sales; refinances are excluded, as
+      are new homes. Published with roughly a two-month lag, with revisions limited to about the
+      latest two years. It is thin in non-disclosure states, where deeds do not record prices,
+      so it is weaker there.
+  - series_id: fred.cs.national.nsa
+    source_id: fred
+    metric_id: price_index
+    method_family: repeat_sales
+    market: sale
+    seasonal_adj: false
+    frequency: monthly
+    typical_lag_days: 60
+    release_date_kind: published
+    vendor_key: CSUSHPINSA
+    fixed_geo_id: US
+    methodology_md: >-
+      The not seasonally adjusted version of the Case-Shiller national index, a value-weighted
+      arithmetic repeat-sales index published as a three-month moving average. Do not compare
+      it directly with seasonally adjusted series, since mixing them creates false divergence.
+      Roughly two-month lag, excludes new homes, and is weaker in non-disclosure states where
+      deeds do not record prices.
+  - series_id: fred.cs.20city.sa
+    source_id: fred
+    metric_id: price_index
+    method_family: repeat_sales
+    market: sale
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 60
+    release_date_kind: published
+    vendor_key: SPCS20RSA
+    fixed_geo_id: US
+    methodology_md: >-
+      The Case-Shiller 20-city composite is a composite of 20 metros, not a national index.
+      It is a value-weighted arithmetic repeat-sales index, a three-month moving average with
+      about a two-month lag. It excludes new homes and is thinner for metros in non-disclosure
+      states such as Texas.
+  - series_id: fred.cs.metro.sa
+    source_id: fred
+    metric_id: price_index
+    method_family: repeat_sales
+    market: sale
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 60
+    release_date_kind: published
+    vendor_key: "ATXRSA=12060|BOXRSA=14460|CRXRSA=16740|CHXRSA=16980|CEXRSA=17410|DAXRSA=19100|DNXRSA=19740|DEXRSA=19820|LVXRSA=29820|LXXRSA=31080|MIXRSA=33100|MNXRSA=33460|NYXRSA=35620|PHXRSA=38060|POXRSA=38900|SDXRSA=41740|SFXRSA=41860|SEXRSA=42660|TPXRSA=45300|WDXRSA=47900"
+    fixed_geo_id: null
+    methodology_md: >-
+      Case-Shiller metro-area indices for the 20 metros, value-weighted arithmetic repeat sales
+      as a three-month moving average with about a two-month lag. S&P's metro area definition
+      differs from the OMB CBSA, so metros are mapped to the nearest CBSA code and are not
+      identical areas. Weaker in non-disclosure states, including the Texas metros, where
+      deeds do not record prices.
+  - series_id: fred.pmms.30y.nsa
+    source_id: fred
+    metric_id: mortgage_rate_30y
+    method_family: survey
+    market: finance
+    seasonal_adj: false
+    frequency: weekly
+    typical_lag_days: 7
+    release_date_kind: published
+    vendor_key: MORTGAGE30US
+    fixed_geo_id: US
+    methodology_md: >-
+      Freddie Mac Primary Mortgage Market Survey weekly average of 30-year fixed rates,
+      published on Thursdays. National only, and covers conforming loans only.
+  - series_id: fred.starts.total.sa
+    source_id: fred
+    metric_id: housing_starts
+    method_family: survey
+    market: construction
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 21
+    release_date_kind: published
+    vendor_key: HOUST
+    fixed_geo_id: US
+    methodology_md: >-
+      Census Bureau (with HUD) New Residential Construction, from the Survey of Construction.
+      Released about 2 to 4 weeks after the month, national and regional. It has large sampling
+      error, is revised in later months and annually, and the 2025 shutdown delayed releases
+      (November 2025 data moved to Feb. 18, 2026).
+  - series_id: fred.cpi.rent.sa
+    source_id: fred
+    metric_id: cpi_index
+    method_family: survey
+    market: rent
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 14
+    release_date_kind: published
+    vendor_key: CUSR0000SEHA
+    fixed_geo_id: US
+    methodology_md: >-
+      BLS CPI rent of primary residence, built from about 8,000 rental unit quotes each month in
+      six panels, each priced twice a year. It lags the market by roughly 12 months. Rents for
+      October 2025 were carried forward from April 2025, producing unchanged index values for
+      October because of the shutdown; the distortion unwound when the panel was re-surveyed
+      in April 2026.
+  - series_id: fred.cpi.oer.sa
+    source_id: fred
+    metric_id: cpi_index
+    method_family: survey
+    market: rent
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 14
+    release_date_kind: published
+    vendor_key: CUSR0000SEHC
+    fixed_geo_id: US
+    methodology_md: >-
+      BLS CPI owners' equivalent rent (OER), derived from the rent sample, and 26.204% of the
+      CPI-U per BLS's December 2025 relative-importance weights. It lags the market by roughly
+      12 months. Rents for October 2025 were carried forward from April 2025, giving unchanged
+      OER index values for October; BLS researchers called that an unlikely economic reality.
+  - series_id: fhfa.hpi.po.m.sa
+    source_id: fhfa
+    metric_id: price_index
+    method_family: repeat_sales
+    market: sale
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 60
+    release_date_kind: first_seen
+    vendor_key: "purchase-only|monthly|USA or Census Division|index_sa"
+    fixed_geo_id: null
+    methodology_md: >-
+      FHFA purchase-only House Price Index for the nation and Census divisions, a geometric
+      weighted repeat-sales index modified from Case-Shiller. It uses conforming, conventional
+      Fannie Mae and Freddie Mac loans and excludes jumbo loans and restricts condos, co-ops
+      and multi-unit properties. Data arrive with about a two-month lag and new sale pairs
+      revise prior periods.
+  - series_id: fhfa.hpi.po.q.sa
+    source_id: fhfa
+    metric_id: price_index
+    method_family: repeat_sales
+    market: sale
+    seasonal_adj: true
+    frequency: quarterly
+    typical_lag_days: 60
+    release_date_kind: first_seen
+    vendor_key: "purchase-only|quarterly|State|index_sa"
+    fixed_geo_id: null
+    methodology_md: >-
+      FHFA purchase-only House Price Index at the state level, published quarterly. A geometric
+      weighted repeat-sales index using conforming, conventional GSE loans only, so jumbo
+      loans, cash sales and restricted property types are not covered. About a two-month
+      lag, and revised as new sale pairs arrive.
+  - series_id: fhfa.hpi.at.q.nsa
+    source_id: fhfa
+    metric_id: price_index
+    method_family: repeat_sales
+    market: sale
+    seasonal_adj: false
+    frequency: quarterly
+    typical_lag_days: 60
+    release_date_kind: first_seen
+    vendor_key: "all-transactions|quarterly|MSA|index_nsa"
+    fixed_geo_id: null
+    methodology_md: >-
+      FHFA all-transactions House Price Index for metropolitan areas (CBSA), published
+      quarterly and not seasonally adjusted. Unlike purchase-only and Case-Shiller, the
+      all-transactions index includes refinance appraisals. Geometric repeat sales on GSE
+      conforming loans only, about a two-month lag, revised as new pairs arrive.
+  - series_id: zillow.zhvi.all.mid.sa
+    source_id: zillow
+    metric_id: typical_home_value
+    method_family: hedonic_avm
+    market: sale
+    tier: mid
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: zhvi_metro|zhvi_state
+    fixed_geo_id: null
+    methodology_md: >-
+      Zillow Home Value Index, a smoothed, seasonally adjusted typical value (35th to 65th
+      percentile) derived from the Zestimate. It covers all homes but inherits automated
+      valuation model error, which is worse in non-disclosure states such as Texas where
+      deeds do not record prices. Weaker there. Release date is the date HouseLens first saw
+      the file.
+  - series_id: zillow.zori.all.sa
+    source_id: zillow
+    metric_id: rent_index
+    method_family: hedonic_avm
+    market: rent
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: zori_metro
+    fixed_geo_id: null
+    methodology_md: >-
+      Zillow Observed Rent Index, a repeat-rent index of asking rents, so it reflects asking
+      rather than signed lease rents. It covers fewer ZIP codes than ZHVI. The Richmond Fed
+      found ZORI leads CPI owners' equivalent rent by 12 months and CPI tenant rent by 13
+      months.
+  - series_id: realtor.median_list_price.all.nsa
+    source_id: realtor
+    metric_id: median_list_price
+    method_family: listing
+    market: sale
+    seasonal_adj: false
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: median_listing_price
+    fixed_geo_id: null
+    methodology_md: >-
+      Realtor.com median listing price from its research data files, a measure of asking
+      prices and active listings, not closed sales. Not seasonally adjusted, so seasonal swings
+      should not be compared against adjusted series. Realtor.com uses its own region IDs,
+      mapped to CBSAs.
+  - series_id: realtor.active_listings.all.nsa
+    source_id: realtor
+    metric_id: active_listings
+    method_family: listing
+    market: sale
+    seasonal_adj: false
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: active_listing_count
+    fixed_geo_id: null
+    methodology_md: >-
+      Realtor.com count of active listings from its research data files: asking prices and
+      active listings, not closed sales. Not seasonally adjusted. Realtor.com uses its own
+      region IDs, mapped to CBSAs.
+  - series_id: realtor.dom.all.nsa
+    source_id: realtor
+    metric_id: days_on_market
+    method_family: listing
+    market: sale
+    seasonal_adj: false
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: median_days_on_market
+    fixed_geo_id: null
+    methodology_md: >-
+      Realtor.com median days on market from its research data files, covering listings (asking
+      prices and active listings, not closed sales). Not seasonally adjusted. Realtor.com uses
+      its own region IDs, mapped to CBSAs.
+  - series_id: realtor.price_reduced_share.all.nsa
+    source_id: realtor
+    metric_id: price_reduced_share
+    method_family: listing
+    market: sale
+    seasonal_adj: false
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: price_reduced_share
+    fixed_geo_id: null
+    methodology_md: >-
+      Realtor.com share of listings with price reductions, from its research data files:
+      asking prices and active listings, not closed sales. Not seasonally adjusted.
+      Realtor.com uses its own region IDs, mapped to CBSAs.
+  - series_id: redfin.median_sale_price.all.sa
+    source_id: redfin
+    metric_id: median_sale_price
+    method_family: median
+    market: sale
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: median_sale_price
+    fixed_geo_id: null
+    methodology_md: >-
+      Redfin Data Center median sale price from MLS data, seasonally adjusted by default. A
+      median, so it swings with the mix of homes sold. Limited to Redfin's MLS coverage, and
+      Redfin adjusts recent months for late data. Manual drop only; disabled until written
+      permission is obtained.
