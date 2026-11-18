@@ -39,3 +39,11 @@ def test_sync_catalog_roundtrip() -> None:
     assert len(CAT.series_by_vendor_key("fred")) == len(
         [s for s in CAT.series if s.source_id == "fred"]
     )
+
+
+def test_fred_metro_vendor_key_pairs() -> None:
+    key = CAT.series_by_vendor_key("fred")
+    (metro,) = [s for s in key.values() if s.series_id == "fred.cs.metro.sa"]
+    pairs = [p.split("=") for p in metro.vendor_key.split("|")]
+    assert len(pairs) == 20
+    assert all(len(p) == 2 and p[1].isdigit() and len(p[1]) == 5 for p in pairs)

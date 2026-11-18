@@ -62,6 +62,8 @@ metrics:
   - {metric_id: days_on_market, label: Days on market, unit: days, higher_is: neutral}
   - {metric_id: price_reduced_share, label: Share of listings with price cuts, unit: pct, higher_is: neutral}
 
+# vendor_key may be a |-joined list that consumers split: zillow zhvi parts, or fred metro
+# FREDID=CBSA pairs.
 series:
   - series_id: fred.cs.national.sa
     source_id: fred
@@ -193,7 +195,7 @@ series:
       BLS CPI owners' equivalent rent (OER), derived from the rent sample, and 26.204% of the
       CPI-U per BLS's December 2025 relative-importance weights. It lags the market by roughly
       12 months. Rents for October 2025 were carried forward from April 2025, giving unchanged
-      OER index values for October; BLS researchers called that an unlikely economic reality.
+      OER index values for October; BLS researchers called no October price change an unlikely economic reality.
   - series_id: fhfa.hpi.po.m.sa
     source_id: fhfa
     metric_id: price_index
@@ -208,8 +210,8 @@ series:
     methodology_md: >-
       FHFA purchase-only House Price Index for the nation and Census divisions, a geometric
       weighted repeat-sales index modified from Case-Shiller. It uses conforming, conventional
-      Fannie Mae and Freddie Mac loans and excludes jumbo loans and restricts condos, co-ops
-      and multi-unit properties. Data arrive with about a two-month lag and new sale pairs
+      Fannie Mae and Freddie Mac loans, with no jumbo loans, and restricts condos, co-ops,
+      multi-unit properties and PUDs. Data arrive with about a two-month lag and new sale pairs
       revise prior periods.
   - series_id: fhfa.hpi.po.q.sa
     source_id: fhfa
@@ -224,9 +226,9 @@ series:
     fixed_geo_id: null
     methodology_md: >-
       FHFA purchase-only House Price Index at the state level, published quarterly. A geometric
-      weighted repeat-sales index using conforming, conventional GSE loans only, so jumbo
-      loans, cash sales and restricted property types are not covered. About a two-month
-      lag, and revised as new sale pairs arrive.
+      weighted repeat-sales index using conforming, conventional Fannie Mae and Freddie Mac loans
+      only, with no jumbo loans, and it restricts condos, co-ops, multi-unit properties and PUDs.
+      About a two-month lag, and revised as new sale pairs arrive.
   - series_id: fhfa.hpi.at.q.nsa
     source_id: fhfa
     metric_id: price_index
@@ -241,8 +243,9 @@ series:
     methodology_md: >-
       FHFA all-transactions House Price Index for metropolitan areas (CBSA), published
       quarterly and not seasonally adjusted. Unlike purchase-only and Case-Shiller, the
-      all-transactions index includes refinance appraisals. Geometric repeat sales on GSE
-      conforming loans only, about a two-month lag, revised as new pairs arrive.
+      all-transactions index includes refinance appraisals. Geometric repeat sales on conforming,
+      conventional Fannie Mae and Freddie Mac loans only, about a two-month lag, revised as new
+      pairs arrive.
   - series_id: zillow.zhvi.all.mid.sa
     source_id: zillow
     metric_id: typical_home_value
@@ -289,10 +292,7 @@ series:
     vendor_key: median_listing_price
     fixed_geo_id: null
     methodology_md: >-
-      Realtor.com median listing price from its research data files, a measure of asking
-      prices and active listings, not closed sales. Not seasonally adjusted, so seasonal swings
-      should not be compared against adjusted series. Realtor.com uses its own region IDs,
-      mapped to CBSAs.
+      Realtor.com's median listing price (column median_listing_price). Asking prices and active listings, not closed sales. Not seasonally adjusted.
   - series_id: realtor.active_listings.all.nsa
     source_id: realtor
     metric_id: active_listings
@@ -305,9 +305,7 @@ series:
     vendor_key: active_listing_count
     fixed_geo_id: null
     methodology_md: >-
-      Realtor.com count of active listings from its research data files: asking prices and
-      active listings, not closed sales. Not seasonally adjusted. Realtor.com uses its own
-      region IDs, mapped to CBSAs.
+      Realtor.com's count of active listings (column active_listing_count). Asking prices and active listings, not closed sales. Not seasonally adjusted.
   - series_id: realtor.dom.all.nsa
     source_id: realtor
     metric_id: days_on_market
@@ -320,9 +318,7 @@ series:
     vendor_key: median_days_on_market
     fixed_geo_id: null
     methodology_md: >-
-      Realtor.com median days on market from its research data files, covering listings (asking
-      prices and active listings, not closed sales). Not seasonally adjusted. Realtor.com uses
-      its own region IDs, mapped to CBSAs.
+      Realtor.com's median days on market (column median_days_on_market). Asking prices and active listings, not closed sales. Not seasonally adjusted.
   - series_id: realtor.price_reduced_share.all.nsa
     source_id: realtor
     metric_id: price_reduced_share
@@ -335,9 +331,7 @@ series:
     vendor_key: price_reduced_share
     fixed_geo_id: null
     methodology_md: >-
-      Realtor.com share of listings with price reductions, from its research data files:
-      asking prices and active listings, not closed sales. Not seasonally adjusted.
-      Realtor.com uses its own region IDs, mapped to CBSAs.
+      Realtor.com's share of listings with price reductions (column price_reduced_share). Asking prices and active listings, not closed sales. Not seasonally adjusted.
   - series_id: redfin.median_sale_price.all.sa
     source_id: redfin
     metric_id: median_sale_price

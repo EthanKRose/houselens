@@ -35,7 +35,12 @@ class Metric:
 
 @dataclass(frozen=True)
 class Series:
-    """One published series; the last three fields are catalog-only."""
+    """One published series.
+
+    ``release_date_kind``, ``vendor_key`` and ``fixed_geo_id`` are catalog-only. ``vendor_key``
+    may be a ``|``-joined list that consumers split (zillow zhvi parts, or fred metro
+    ``FREDID=CBSA`` pairs).
+    """
 
     series_id: str
     source_id: str
@@ -115,17 +120,20 @@ def sync_catalog(con: duckdb.DuckDBPyConnection, catalog: Catalog) -> None:
     """
     for s in catalog.sources:
         con.execute(
-            "INSERT OR REPLACE INTO source VALUES (?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO source (source_id, name, publisher, homepage_url, license_note,"
+            " access_method) VALUES (?,?,?,?,?,?)",
             [s.source_id, s.name, s.publisher, s.homepage_url, s.license_note, s.access_method],
         )
     for m in catalog.metrics:
         con.execute(
-            "INSERT OR REPLACE INTO metric VALUES (?,?,?,?)",
+            "INSERT OR REPLACE INTO metric (metric_id, label, unit, higher_is) VALUES (?,?,?,?)",
             [m.metric_id, m.label, m.unit, m.higher_is],
         )
     for r in catalog.series:
         con.execute(
-            "INSERT OR REPLACE INTO series VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO series (series_id, source_id, metric_id, method_family, market,"
+            " property_type, bedrooms, tier, new_or_existing, seasonal_adj, frequency,"
+            " typical_lag_days, methodology_md) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
                 r.series_id, r.source_id, r.metric_id, r.method_family, r.market,
                 r.property_type, r.bedrooms, r.tier, r.new_or_existing, r.seasonal_adj,
