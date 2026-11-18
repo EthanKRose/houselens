@@ -1,0 +1,23 @@
+{
+  "_fixture_note": "hand-built; replace with real response once FRED_API_KEY exists",
+  "observations": [
+    {
+      "realtime_start": "2026-10-28",
+      "realtime_end": "2026-10-28",
+      "date": "2026-06-01",
+      "value": "330.1"
+    },
+    {
+      "realtime_start": "2026-10-28",
+      "realtime_end": "2026-10-28",
+      "date": "2026-07-01",
+      "value": "."
+    },
+    {
+      "realtime_start": "2026-10-28",
+      "realtime_end": "2026-10-28",
+      "date": "2026-08-01",
+      "value": "331.5"
+    }
+  ]
+}
