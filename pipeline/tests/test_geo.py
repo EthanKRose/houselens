@@ -41,7 +41,10 @@ def test_non_disclosure_flags() -> None:
     flagged = set(GEO.filter(pl.col("non_disclosure"))["geo_id"])
     assert {"ST:48", "ST:29"} <= flagged
     assert not {"ST:53", "ST:04"} & flagged
-    assert len(flagged) == 12
+    assert len({g for g in flagged if g.startswith("ST:")}) == 12
+    # a CBSA follows its first-listed state
+    assert {"CBSA:12420", "CBSA:45500"} <= flagged  # TX, TX-AR
+    assert not {"CBSA:35620", "CBSA:31140", "CBSA:36620"} & flagged  # NY-NJ, KY-IN, OR-ID
 
 
 def test_msad_codes() -> None:

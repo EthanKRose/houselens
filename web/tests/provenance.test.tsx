@@ -130,6 +130,11 @@ describe("AboutThisNumber", () => {
     expect(screen.getByText(/Non-disclosure state/)).toBeInTheDocument();
   });
 
+  it("shows the non-disclosure note for ZHVI on a Texas metro (CBSA:12420)", () => {
+    open("CBSA:12420");
+    expect(screen.getByText(/Non-disclosure state/)).toBeInTheDocument();
+  });
+
   it("omits non-disclosure note for a disclosing geography", () => {
     open("ST:36");
     expect(screen.queryByText(/Non-disclosure state/)).toBeNull();

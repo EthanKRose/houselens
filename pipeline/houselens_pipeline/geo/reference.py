@@ -48,7 +48,10 @@ def load_geographies() -> pl.DataFrame:
                 level=pl.lit("CBSA"),
                 name="title",
                 state_fips=pl.lit(None, pl.String),  # CBSAs can span states
-                non_disclosure=pl.lit(False),
+                # the first (principal) state in the title decides, e.g. "Louisville, KY-IN" -> KY
+                non_disclosure=pl.col("title")
+                .str.extract(r", ([A-Z]{2})(?:-[A-Z]{2})*$")
+                .is_in(NON_DISCLOSURE_USPS),
             ),
         ]
     )
