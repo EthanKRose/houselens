@@ -1,0 +1,166 @@
+"""``houselens ingest``: run every enabled source, isolating each source's failures."""
+
+import argparse
+import json
+import os
+import uuid
+from collections.abc import Callable
+from datetime import date
+from pathlib import Path
+
+import duckdb
+import polars as pl
+
+from houselens_pipeline import ingest
+from houselens_pipeline.adapters.base import Adapter, checksum, read_parts
+from houselens_pipeline.adapters.fhfa import FhfaAdapter
+from houselens_pipeline.adapters.fred import FredAdapter
+from houselens_pipeline.adapters.realtor import RealtorAdapter
+from houselens_pipeline.adapters.zillow import ZillowAdapter
+from houselens_pipeline.catalog import Catalog, load_catalog, sync_catalog
+from houselens_pipeline.db import connect
+from houselens_pipeline.geo.reference import sync_geographies
+from houselens_pipeline.geo.resolve import resolve_regions
+from houselens_pipeline.ingest import IngestResult, write_vintage
+from houselens_pipeline.quality.known_events import apply_known_events
+from houselens_pipeline.quality.schemas import validate_obs
+
+MAX_UNMATCHED_SHARE = 0.05
+MANUAL_SOURCES = frozenset({"redfin"})  # manual-drop only: never fetched
+_ADAPTERS: dict[str, Callable[[], Adapter]] = {
+    "fhfa": FhfaAdapter,
+    "zillow": ZillowAdapter,
+    "realtor": RealtorAdapter,
+}
+
+
+class SourceError(Exception):
+    """A source failed for a known reason; the message is recorded as-is."""
+
+
+def _adapter(source_id: str, served: bool) -> Adapter:
+    if source_id == "fred":
+        key = os.environ.get("FRED_API_KEY", "")
+        if not key and not served:
+            raise SourceError("FRED_API_KEY not set")
+        return FredAdapter(key)
+    if source_id not in _ADAPTERS:
+        raise SourceError("no adapter")
+    return _ADAPTERS[source_id]()
+
+
+def _ingest_source(
+    con: duckdb.DuckDBPyConnection,
+    source_id: str,
+    catalog: Catalog,
+    run_date: date,
+    input_dir: Path | None,
+    report_dir: Path,
+) -> IngestResult:
+    drop = input_dir / source_id if input_dir else None
+    served = drop is not None and drop.is_dir()
+    if source_id in MANUAL_SOURCES and not served:
+        raise SourceError("manual input missing")
+    adapter = _adapter(source_id, served)
+    parts = read_parts(drop) if drop is not None and served else adapter.fetch()
+    digest = checksum(parts)
+    out = adapter.parse(parts, catalog)
+
+    res = resolve_regions(source_id, out.regions)
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report = {
+        "unmatched": res.unmatched.to_dicts(),
+        "skipped_by_rule": res.skipped_by_rule.to_dicts(),
+    }
+    (report_dir / f"unmatched_{source_id}.json").write_text(json.dumps(report, indent=2) + "\n")
+    con.executemany(
+        "insert or replace into vendor_geo_map (source_id, vendor_region_id, vendor_name, geo_id,"
+        " match_method) values (?, ?, ?, ?, ?)",
+        res.mapping.select(
+            "source_id", "vendor_region_id", "vendor_name", "geo_id", "match_method"
+        ).rows(),
+    )
+    total = out.regions.height
+    if total and res.unmatched.height / total > MAX_UNMATCHED_SHARE:
+        raise SourceError(
+            f"{res.unmatched.height}/{total} regions unmatched (> {MAX_UNMATCHED_SHARE:.0%})"
+        )
+
+    # unmatched and rule-skipped regions are dropped (and reported), never guessed
+    obs = out.obs.join(
+        res.mapping.select("vendor_region_id", "geo_id"), on="vendor_region_id", how="inner"
+    ).drop("vendor_region_id")
+    if "quality_flags" in obs.columns:
+        obs = obs.with_columns(
+            pl.col("quality_flags").fill_null(pl.lit([], dtype=pl.List(pl.String)))
+        )
+    obs = validate_obs(apply_known_events(obs))
+    return write_vintage(con, source_id, obs, digest, run_date)
+
+
+def run(
+    db_path: Path, sources: list[str], run_date: date, input_dir: Path | None, report_dir: Path
+) -> int:
+    """Ingest each requested, enabled source; one source failing never stops the others.
+
+    Every source gets exactly one ``ingest_run`` row, including failures before the write
+    (fetch, parse, resolution, validation, too many unmatched regions).
+
+    Args:
+        db_path: DuckDB file to write.
+        sources: Source ids to run; ids that are not enabled in the catalog are skipped.
+        run_date: Vintage date.
+        input_dir: Optional directory of ``<source_id>/`` raw drops used instead of fetching.
+        report_dir: Where ``unmatched_<source_id>.json`` reports go.
+
+    Returns:
+        0 if no source failed, else 1.
+    """
+    catalog = load_catalog()
+    enabled = {s.source_id for s in catalog.sources if s.enabled}
+    con = connect(db_path)
+    sync_catalog(con, catalog)
+    sync_geographies(con)
+    failed = False
+    for source_id in sources:
+        if source_id not in enabled:
+            print(f"{source_id}: skipped (not an enabled source)")
+            continue
+        started = ingest._now()
+        try:
+            result = _ingest_source(con, source_id, catalog, run_date, input_dir, report_dir)
+        except Exception as e:  # isolate the source: record and move on
+            msg = str(e) if isinstance(e, SourceError) else f"{type(e).__name__}: {e}"
+            result = IngestResult("failed", 0, msg)
+            # shortcut: no checksum on pre-write failures; add one if ops needs to diff drops
+            ingest._record_run(con, str(uuid.uuid4()), source_id, started, result, "")
+        failed |= result.status == "failed"
+        print(f"{source_id}: {result.status} rows={result.rows_written} {result.message}")
+    con.close()
+    return 1 if failed else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Parse the command line and run ``houselens ingest``.
+
+    Args:
+        argv: Arguments without the program name; defaults to ``sys.argv[1:]``.
+
+    Returns:
+        The process exit code.
+    """
+    p = argparse.ArgumentParser(prog="houselens")
+    sub = p.add_subparsers(dest="command", required=True)
+    ing = sub.add_parser("ingest", help="ingest every enabled source")
+    ing.add_argument("--db", type=Path, required=True)
+    ing.add_argument("--sources", help="comma-separated source ids (default: all enabled)")
+    ing.add_argument("--run-date", type=date.fromisoformat, default=date.today())
+    ing.add_argument("--input-dir", type=Path)
+    ing.add_argument("--report-dir", type=Path, default=Path("reports"))
+    a = p.parse_args(argv)
+    sources = (
+        a.sources.split(",")
+        if a.sources
+        else [s.source_id for s in load_catalog().sources if s.enabled]
+    )
+    return run(a.db, sources, a.run_date, a.input_dir, a.report_dir)

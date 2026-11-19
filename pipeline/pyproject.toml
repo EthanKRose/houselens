@@ -12,6 +12,9 @@ dependencies = [
     "pyyaml",
 ]
 
+[project.scripts]
+houselens = "houselens_pipeline.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest",
