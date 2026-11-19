@@ -47,3 +47,8 @@ def test_fred_metro_vendor_key_pairs() -> None:
     pairs = [p.split("=") for p in metro.vendor_key.split("|")]
     assert len(pairs) == 20
     assert all(len(p) == 2 and p[1].isdigit() and len(p[1]) == 5 for p in pairs)
+
+
+def test_fred_dates_are_first_seen() -> None:
+    # no realtime params are sent, so realtime_start is the request date, not a publication date
+    assert {s.release_date_kind for s in CAT.series if s.source_id == "fred"} == {"first_seen"}

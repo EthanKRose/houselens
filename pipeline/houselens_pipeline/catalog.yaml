@@ -73,7 +73,7 @@ series:
     seasonal_adj: true
     frequency: monthly
     typical_lag_days: 60
-    release_date_kind: published
+    release_date_kind: first_seen
     vendor_key: CSUSHPISA
     fixed_geo_id: US
     methodology_md: >-
@@ -91,7 +91,7 @@ series:
     seasonal_adj: false
     frequency: monthly
     typical_lag_days: 60
-    release_date_kind: published
+    release_date_kind: first_seen
     vendor_key: CSUSHPINSA
     fixed_geo_id: US
     methodology_md: >-
@@ -108,7 +108,7 @@ series:
     seasonal_adj: true
     frequency: monthly
     typical_lag_days: 60
-    release_date_kind: published
+    release_date_kind: first_seen
     vendor_key: SPCS20RSA
     fixed_geo_id: US
     methodology_md: >-
@@ -124,7 +124,7 @@ series:
     seasonal_adj: true
     frequency: monthly
     typical_lag_days: 60
-    release_date_kind: published
+    release_date_kind: first_seen
     vendor_key: "ATXRSA=12060|BOXRSA=14460|CRXRSA=16740|CHXRSA=16980|CEXRSA=17410|DAXRSA=19100|DNXRSA=19740|DEXRSA=19820|LVXRSA=29820|LXXRSA=31080|MIXRSA=33100|MNXRSA=33460|NYXRSA=35620|PHXRSA=38060|POXRSA=38900|SDXRSA=41740|SFXRSA=41860|SEXRSA=42660|TPXRSA=45300|WDXRSA=47900"
     fixed_geo_id: null
     methodology_md: >-
@@ -141,7 +141,7 @@ series:
     seasonal_adj: false
     frequency: weekly
     typical_lag_days: 7
-    release_date_kind: published
+    release_date_kind: first_seen
     vendor_key: MORTGAGE30US
     fixed_geo_id: US
     methodology_md: >-
@@ -155,7 +155,7 @@ series:
     seasonal_adj: true
     frequency: monthly
     typical_lag_days: 21
-    release_date_kind: published
+    release_date_kind: first_seen
     vendor_key: HOUST
     fixed_geo_id: US
     methodology_md: >-
@@ -171,7 +171,7 @@ series:
     seasonal_adj: true
     frequency: monthly
     typical_lag_days: 14
-    release_date_kind: published
+    release_date_kind: first_seen
     vendor_key: CUSR0000SEHA
     fixed_geo_id: US
     methodology_md: >-
@@ -188,7 +188,7 @@ series:
     seasonal_adj: true
     frequency: monthly
     typical_lag_days: 14
-    release_date_kind: published
+    release_date_kind: first_seen
     vendor_key: CUSR0000SEHC
     fixed_geo_id: US
     methodology_md: >-
