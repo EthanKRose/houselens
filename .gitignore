@@ -9,3 +9,5 @@ web/public/data/
 .env.*
 __pycache__/
 .DS_Store
+web/test-results/
+web/playwright-report/

@@ -4,3 +4,5 @@ out
 public/data
 package-lock.json
 components/ui
+test-results
+playwright-report
