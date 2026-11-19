@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 12 * * *"
   workflow_dispatch:
+    inputs:
+      first_run:
+        description: Allow creating a fresh DB when R2 has none (first run only)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -11,12 +16,6 @@ permissions:
 concurrency:
   group: ingest
   cancel-in-progress: false
-
-env:
-  R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-  R2_BUCKET: ${{ secrets.R2_BUCKET }}
 
 jobs:
   ingest:
@@ -36,6 +35,12 @@ jobs:
 
       # A non-404 failure here fails the job, so we never ingest onto an empty DB.
       - name: Restore DB from R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          ALLOW_FRESH: ${{ inputs.first_run && '1' || '' }}
         run: |
           mkdir -p data/inputs data/reports
           scripts/r2.sh get data/houselens.duckdb houselens.duckdb
@@ -46,6 +51,8 @@ jobs:
           aws s3 sync "s3://${R2_BUCKET}/inputs/redfin/" data/inputs/redfin/ \
             --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" --only-show-errors
         env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
@@ -90,6 +97,12 @@ jobs:
 
       - name: Persist DB to R2
         if: always() && steps.ingest.outputs.persist == 'true'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          ALLOW_FRESH: ${{ inputs.first_run && '1' || '' }}
         run: scripts/r2.sh put data/houselens.duckdb houselens.duckdb
 
       - name: Upload reports

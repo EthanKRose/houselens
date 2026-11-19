@@ -13,25 +13,33 @@ local_path="${2:?missing local path}"
 key="${3:?missing key}"
 prev_key="${key%.duckdb}.prev.duckdb"
 
-head_object() { aws s3api head-object --endpoint-url "$ENDPOINT" --bucket "$R2_BUCKET" --key "$key" 2>&1; }
+# Prints 1 if the key exists, 0 if not; exits 1 on any aws error (no text parsing of errors).
+key_exists() {
+  local n
+  n=$(aws s3api list-objects-v2 --endpoint-url "$ENDPOINT" --bucket "$R2_BUCKET" --prefix "$key" \
+    --query "length(Contents[?Key=='$key'] || \`[]\`)" --output text) || {
+    echo "R2 list-objects-v2 failed; refusing to continue" >&2
+    exit 1
+  }
+  echo "$n"
+}
 
 case "$cmd" in
   get)
-    if out=$(head_object); then
+    if [ "$(key_exists)" = 1 ]; then
       aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors "s3://${R2_BUCKET}/${key}" "$local_path"
-    elif grep -qE '404|NoSuchKey|Not Found' <<<"$out"; then
+    elif [ "${ALLOW_FRESH:-}" = 1 ]; then
       echo "no remote DB (first run)"
     else
-      echo "R2 head-object failed (not a 404); refusing to continue" >&2
-      echo "$out" | grep -v -F "$R2_SECRET_ACCESS_KEY" >&2
+      echo "no remote DB and ALLOW_FRESH is not set; refusing to start from an empty DB" >&2
       exit 1
     fi
     ;;
   put)
-    if out=$(head_object); then
+    if [ "$(key_exists)" = 1 ]; then
       aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors "s3://${R2_BUCKET}/${key}" "s3://${R2_BUCKET}/${prev_key}"
-    elif ! grep -qE '404|NoSuchKey|Not Found' <<<"$out"; then
-      echo "R2 head-object failed (not a 404); not overwriting" >&2
+    elif [ "${ALLOW_FRESH:-}" != 1 ]; then
+      echo "no remote DB and ALLOW_FRESH is not set; refusing to create one" >&2
       exit 1
     fi
     aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors "$local_path" "s3://${R2_BUCKET}/${key}"
