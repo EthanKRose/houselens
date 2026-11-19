@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import polars as pl
 import pytest
 
@@ -152,3 +154,14 @@ def test_null_name() -> None:
         ("o", "US"),
     ]
     assert sorted(r.unmatched["vendor_region_id"]) == ["n", "s"]
+
+
+def test_realtor_codes_resolve() -> None:
+    codes = set(
+        pl.read_csv(Path(__file__).parent / "fixtures/realtor/metro.csv", infer_schema=False)[
+            "cbsa_code"
+        ]
+    )
+    r = resolve_regions("realtor", regions(*((c, None, "CBSA", c) for c in sorted(codes))))
+    assert r.unmatched.is_empty() and r.skipped_by_rule.is_empty()
+    assert r.mapping.height == len(codes)

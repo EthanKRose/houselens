@@ -35,7 +35,7 @@ sources:
     license_note: >-
       Realtor.com research files are a sanctioned free route; scraping the portal violates its
       terms. Attribute the source.
-    attribution: "Data: Realtor.com Economic Research (attribution wording to be confirmed)"
+    attribution: "Data: Realtor.com ® Economic Research."
     enabled: true
   - source_id: redfin
     name: Redfin Data Center

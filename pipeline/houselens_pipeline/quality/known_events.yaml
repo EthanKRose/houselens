@@ -12,3 +12,7 @@
     June, BLS suspended collection entirely in Buffalo, NY. Roughly 15 percent of the sample
     in the other 72 areas also was suspended from collection, on average. BLS did not measure
     the impact of collection suspensions on subnational and item indexes.
+- id: realtor_quality_flag
+  explanation: >-
+    Realtor.com flags this value because it is outside its typical range ("quality_flag" = 1).
+    While rare, Realtor.com says such figures should be reviewed before reporting.

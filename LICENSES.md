@@ -28,7 +28,11 @@ TODO: confirm wording in Task 9b.
 
 Public research CSVs (`RDC_Inventory_Core_Metrics_*`). Values are asking/listing data, not sales.
 
-TODO: confirm wording in Task 9b.
+Realtor.com's research data page (realtor.com/research/data, read 2026-11-18) asks: "Please
+attribute to Realtor.com ® Economic Research (or shortened to Realtor.com ® in cases where
+space is limited) when quoting members of our team and/or using our housing data, research,
+and insights". HouseLens displays "Data: Realtor.com ® Economic Research." and never scrapes
+realtor.com pages.
 
 ## Redfin Data Center: DISABLED (manual drop only)
 
