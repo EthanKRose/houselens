@@ -4,9 +4,11 @@ import shutil
 from datetime import date
 from pathlib import Path
 
+import polars as pl
 import pytest
 
 from houselens_pipeline import cli
+from houselens_pipeline.adapters.fhfa import FhfaAdapter
 from houselens_pipeline.catalog import load_catalog
 from houselens_pipeline.db import connect
 
@@ -16,9 +18,7 @@ SOURCES = ["fred", "fhfa", "zillow", "realtor"]
 
 
 @pytest.fixture(autouse=True)
-def _tolerate_fixture_unmatched(monkeypatch: pytest.MonkeyPatch) -> None:
-    # the Zillow fixture's one unmatched micro area (Lamesa) is 1 of 8 regions
-    monkeypatch.setattr(cli, "MAX_UNMATCHED_SHARE", 0.2)
+def _no_fred_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("FRED_API_KEY", raising=False)
 
 
@@ -31,8 +31,20 @@ def _runs(db: Path) -> dict[str, tuple[str, int, str]]:
     return {s: (st, n, m) for s, st, n, m in rows}
 
 
-def _run(tmp_path: Path, input_dir: Path = FIXTURES, sources: list[str] = SOURCES) -> int:
-    return cli.run(tmp_path / "t.duckdb", sources, D1, input_dir, tmp_path / "reports")
+def _run(
+    tmp_path: Path,
+    input_dir: Path = FIXTURES,
+    sources: list[str] = SOURCES,
+    max_unmatched: float = 0.2,  # the Zillow fixture's Lamesa is 1 of 8 regions
+) -> int:
+    return cli.run(
+        tmp_path / "t.duckdb",
+        sources,
+        D1,
+        input_dir,
+        tmp_path / "reports",
+        max_unmatched=max_unmatched,
+    )
 
 
 def test_fixture_run_ingests_all_enabled(tmp_path: Path) -> None:
@@ -93,11 +105,8 @@ def test_unmatched_report_written(tmp_path: Path) -> None:
     assert len(fhfa["skipped_by_rule"]) == 1
 
 
-def test_unmatched_over_threshold_fails_source(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(cli, "MAX_UNMATCHED_SHARE", 0.05)
-    assert _run(tmp_path) == 1
+def test_unmatched_over_threshold_fails_source(tmp_path: Path) -> None:
+    assert _run(tmp_path, max_unmatched=cli.MAX_UNMATCHED_SHARE) == 1
     runs = _runs(tmp_path / "t.duckdb")
     assert runs["zillow"][0] == "failed" and "unmatched" in runs["zillow"][2]
     assert runs["fhfa"][0] == "ok"
@@ -121,3 +130,18 @@ def test_main_parses_args(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     assert cli.main(argv) == 0
     out = capsys.readouterr().out
     assert out.startswith("fhfa: ok") and set(_runs(db)) == {"fhfa"}
+    assert out.rstrip().endswith("unmatched=0 skipped_by_rule=1 (input-dir)")
+    zargv = ["ingest", "--db", str(db), "--sources", "zillow", "--input-dir", str(FIXTURES)]
+    zargv += ["--report-dir", str(tmp_path / "r"), "--max-unmatched-share", "0.2"]
+    assert cli.main(zargv) == 0
+
+
+def test_polars_panic_isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def panic(*_: object) -> None:
+        raise pl.exceptions.PanicException("boom")
+
+    monkeypatch.setattr(FhfaAdapter, "parse", panic)
+    assert _run(tmp_path) == 1
+    runs = _runs(tmp_path / "t.duckdb")
+    assert runs["fhfa"][0] == "failed" and "boom" in runs["fhfa"][2]
+    assert runs["zillow"][0] == "ok" and runs["zillow"][1] > 0

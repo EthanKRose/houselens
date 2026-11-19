@@ -56,17 +56,22 @@ def _ingest_source(
     run_date: date,
     input_dir: Path | None,
     report_dir: Path,
+    max_unmatched: float,
+    note: list[str],
 ) -> IngestResult:
     drop = input_dir / source_id if input_dir else None
     served = drop is not None and drop.is_dir()
     if source_id in MANUAL_SOURCES and not served:
         raise SourceError("manual input missing")
+    if served:
+        note.append("(input-dir)")
     adapter = _adapter(source_id, served)
     parts = read_parts(drop) if drop is not None and served else adapter.fetch()
     digest = checksum(parts)
     out = adapter.parse(parts, catalog)
 
     res = resolve_regions(source_id, out.regions)
+    note.insert(0, f"unmatched={res.unmatched.height} skipped_by_rule={res.skipped_by_rule.height}")
     report_dir.mkdir(parents=True, exist_ok=True)
     report = {
         "unmatched": res.unmatched.to_dicts(),
@@ -81,9 +86,9 @@ def _ingest_source(
         ).rows(),
     )
     total = out.regions.height
-    if total and res.unmatched.height / total > MAX_UNMATCHED_SHARE:
+    if total and res.unmatched.height / total > max_unmatched:
         raise SourceError(
-            f"{res.unmatched.height}/{total} regions unmatched (> {MAX_UNMATCHED_SHARE:.0%})"
+            f"{res.unmatched.height}/{total} regions unmatched (> {max_unmatched:.0%})"
         )
 
     # unmatched and rule-skipped regions are dropped (and reported), never guessed
@@ -99,7 +104,13 @@ def _ingest_source(
 
 
 def run(
-    db_path: Path, sources: list[str], run_date: date, input_dir: Path | None, report_dir: Path
+    db_path: Path,
+    sources: list[str],
+    run_date: date,
+    input_dir: Path | None,
+    report_dir: Path,
+    *,
+    max_unmatched: float = MAX_UNMATCHED_SHARE,
 ) -> int:
     """Ingest each requested, enabled source; one source failing never stops the others.
 
@@ -112,6 +123,7 @@ def run(
         run_date: Vintage date.
         input_dir: Optional directory of ``<source_id>/`` raw drops used instead of fetching.
         report_dir: Where ``unmatched_<source_id>.json`` reports go.
+        max_unmatched: Fail a source whose unmatched share of regions exceeds this.
 
     Returns:
         0 if no source failed, else 1.
@@ -119,24 +131,31 @@ def run(
     catalog = load_catalog()
     enabled = {s.source_id for s in catalog.sources if s.enabled}
     con = connect(db_path)
-    sync_catalog(con, catalog)
-    sync_geographies(con)
-    failed = False
-    for source_id in sources:
-        if source_id not in enabled:
-            print(f"{source_id}: skipped (not an enabled source)")
-            continue
-        started = ingest._now()
-        try:
-            result = _ingest_source(con, source_id, catalog, run_date, input_dir, report_dir)
-        except Exception as e:  # isolate the source: record and move on
-            msg = str(e) if isinstance(e, SourceError) else f"{type(e).__name__}: {e}"
-            result = IngestResult("failed", 0, msg)
-            # shortcut: no checksum on pre-write failures; add one if ops needs to diff drops
-            ingest._record_run(con, str(uuid.uuid4()), source_id, started, result, "")
-        failed |= result.status == "failed"
-        print(f"{source_id}: {result.status} rows={result.rows_written} {result.message}")
-    con.close()
+    try:
+        sync_catalog(con, catalog)
+        sync_geographies(con)
+        failed = False
+        for source_id in sources:
+            if source_id not in enabled:
+                print(f"{source_id}: skipped (not an enabled source)")
+                continue
+            started = ingest._now()
+            note: list[str] = []
+            try:
+                result = _ingest_source(
+                    con, source_id, catalog, run_date, input_dir, report_dir, max_unmatched, note
+                )
+            # polars panics are BaseException, not Exception; they must not end the run
+            except (Exception, pl.exceptions.PanicException) as e:
+                msg = str(e) if isinstance(e, SourceError) else f"{type(e).__name__}: {e}"
+                result = IngestResult("failed", 0, msg)
+                # shortcut: no checksum on pre-write failures; add one if ops needs to diff drops
+                ingest._record_run(con, str(uuid.uuid4()), source_id, started, result, "")
+            failed |= result.status == "failed"
+            line = f"{source_id}: {result.status} rows={result.rows_written} {result.message}"
+            print(" ".join([line, *note]))
+    finally:
+        con.close()
     return 1 if failed else 0
 
 
@@ -157,10 +176,18 @@ def main(argv: list[str] | None = None) -> int:
     ing.add_argument("--run-date", type=date.fromisoformat, default=date.today())
     ing.add_argument("--input-dir", type=Path)
     ing.add_argument("--report-dir", type=Path, default=Path("reports"))
+    ing.add_argument("--max-unmatched-share", type=float, default=MAX_UNMATCHED_SHARE)
     a = p.parse_args(argv)
     sources = (
         a.sources.split(",")
         if a.sources
         else [s.source_id for s in load_catalog().sources if s.enabled]
     )
-    return run(a.db, sources, a.run_date, a.input_dir, a.report_dir)
+    return run(
+        a.db,
+        sources,
+        a.run_date,
+        a.input_dir,
+        a.report_dir,
+        max_unmatched=a.max_unmatched_share,
+    )

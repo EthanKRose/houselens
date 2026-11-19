@@ -8,7 +8,7 @@ lint-py:
 
 ingest-fixtures:
 	mkdir -p data && cd pipeline && uv run houselens ingest --db ../data/fixture.duckdb \
-		--input-dir tests/fixtures --report-dir ../data/reports
+		--input-dir tests/fixtures --report-dir ../data/reports --max-unmatched-share 0.2
 
 ingest:
 	mkdir -p data && cd pipeline && uv run houselens ingest --db ../data/houselens.duckdb \
