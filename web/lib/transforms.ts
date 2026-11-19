@@ -20,15 +20,12 @@ function periodKey(iso: string, step: number, back: number): string {
 function partners(points: Point[], t: "yoy" | "mom", frequency: Frequency): (Point | undefined)[] {
   if (frequency === "weekly") {
     const lag = t === "yoy" ? 364 : 28;
-    return points.map((p) => {
-      let best: Point | undefined;
-      let bestOff = Infinity;
-      for (const q of points) {
-        const off = Math.abs((utc(p.start) - utc(q.start)) / DAY - lag);
-        if (off <= 3 && off < bestOff) [best, bestOff] = [q, off];
-      }
-      return best;
-    });
+    const days = points.map((p) => utc(p.start) / DAY);
+    const byDay = new Map<number, Point>();
+    points.forEach((p, i) => byDay.has(days[i]) || byDay.set(days[i], p));
+    // Closest first; on a tie the older (further back) point wins.
+    const probes = [0, -1, 1, -2, 2, -3, 3];
+    return days.map((d) => probes.map((o) => byDay.get(d - lag + o)).find((q) => q !== undefined));
   }
   const step = frequency === "monthly" ? 1 : 3;
   const back = t === "yoy" ? 12 / step : 1;
@@ -41,8 +38,8 @@ function partners(points: Point[], t: "yoy" | "mom", frequency: Frequency): (Poi
  * @param points - observations, oldest first
  * @param t - the transform
  * @param frequency - series cadence, which decides the YoY/MoM partner
- * @param rebaseDate - for "rebased": the date set to 100 (nearest earlier point if none on it); defaults to the first point
- * @returns transformed points keeping start/end/flags; points with no usable partner are omitted
+ * @param rebaseDate - for "rebased": the date set to 100 (nearest earlier point if none on it; empty if that base is <= 0); defaults to the first point
+ * @returns transformed points keeping start/end/flags; points with no partner, or a partner <= 0, are omitted
  */
 export function applyTransform(
   points: Point[],
@@ -54,13 +51,13 @@ export function applyTransform(
   if (t === "rebased") {
     const date = rebaseDate ?? points[0]?.start;
     const base = points.filter((p) => date !== undefined && p.start <= date).at(-1);
-    if (!base || base.value === 0) return [];
+    if (!base || base.value <= 0) return [];
     return points.map((p) => ({ ...p, value: (p.value / base.value) * 100 }));
   }
   const ps = partners(points, t, frequency);
   return points.flatMap((p, i) => {
     const q = ps[i];
-    return q && q.value !== 0 ? [{ ...p, value: (p.value / q.value - 1) * 100 }] : [];
+    return q && q.value > 0 ? [{ ...p, value: (p.value / q.value - 1) * 100 }] : [];
   });
 }
 
@@ -78,6 +75,8 @@ export function filterRange(points: Point[], range: Range, today: Date): Point[]
   }
   const cutoff = new Date(today);
   cutoff.setUTCFullYear(cutoff.getUTCFullYear() - Number.parseInt(range));
+  // Feb 29 minus N years rolls to Mar 1; clamp back to Feb 28.
+  if (cutoff.getUTCDate() !== today.getUTCDate()) cutoff.setUTCDate(0);
   const iso = cutoff.toISOString().slice(0, 10);
   return points.filter((p) => p.end >= iso);
 }

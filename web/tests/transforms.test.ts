@@ -56,6 +56,26 @@ describe("applyTransform", () => {
     expect(out[0].value).toBeCloseTo(120);
   });
 
+  it("weekly YoY breaks a tie toward the older point", () => {
+    // 2024-01-01: 2023-01-01 is 365 days back, 2023-01-03 is 363 -> both 1 day off; older wins.
+    const pts = [p("2023-01-01", 100), p("2023-01-03", 200), p("2024-01-01", 110)];
+    expect(applyTransform(pts, "yoy", "weekly")[0].value).toBeCloseTo(10);
+  });
+
+  it("weekly YoY on 3,000 points is fast and correct", () => {
+    const t0 = Date.UTC(1971, 3, 2);
+    const pts = Array.from({ length: 3000 }, (_, i) =>
+      p(new Date(t0 + i * 7 * 86_400_000).toISOString().slice(0, 10), i + 1),
+    );
+    const started = performance.now();
+    const out = applyTransform(pts, "yoy", "weekly");
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(out).toHaveLength(3000 - 52);
+    expect(out[0].start).toBe(pts[52].start);
+    expect(out[0].value).toBeCloseTo((53 / 1 - 1) * 100);
+    expect(out.at(-1)!.value).toBeCloseTo((3000 / 2948 - 1) * 100);
+  });
+
   it("weekly MoM matches 28±3 days earlier", () => {
     const out = applyTransform([p("2024-01-01", 100), p("2024-01-29", 90)], "mom", "weekly");
     expect(out).toHaveLength(1);
@@ -104,6 +124,19 @@ describe("applyTransform", () => {
     expect(out.map((x) => x.value)).toEqual([100, 300]);
   });
 
+  it("rebased on a zero or negative base is empty", () => {
+    expect(applyTransform([p("2024-01-01", 0), p("2024-02-01", 5)], "rebased", "monthly")).toEqual(
+      [],
+    );
+    expect(applyTransform([p("2024-01-01", -2), p("2024-02-01", 5)], "rebased", "monthly")).toEqual(
+      [],
+    );
+  });
+
+  it("omits a point whose partner is negative", () => {
+    expect(applyTransform([p("2023-01-01", -1), p("2024-01-01", 5)], "yoy", "monthly")).toEqual([]);
+  });
+
   it("rebased with no earlier point is empty", () => {
     expect(applyTransform([p("2024-01-01", 50)], "rebased", "monthly", "2023-06-01")).toEqual([]);
   });
@@ -123,6 +156,12 @@ describe("filterRange", () => {
   });
   it("10y counts back ten years", () => {
     expect(filterRange(pts, "10y", today).map((x) => x.value)).toEqual([2, 3, 4, 5]);
+  });
+  it("1y from a leap day clamps the cutoff to Feb 28", () => {
+    const leap = [p("2027-02-01", 1, "2027-02-28"), p("2027-03-01", 2, "2027-03-31")];
+    expect(filterRange(leap, "1y", new Date("2028-02-29T12:00:00Z")).map((x) => x.value)).toEqual([
+      1, 2,
+    ]);
   });
   it("max returns all", () => {
     expect(filterRange(pts, "max", today)).toEqual(pts);

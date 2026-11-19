@@ -93,5 +93,6 @@ export function serializeViewState(s: ViewState): string {
   const r = typeof s.range === "object" ? `${s.range.start}..${s.range.end}` : s.range;
   if (r !== DEFAULTS.range) p.set("r", r);
   if (s.rebase) p.set("b", s.rebase);
-  return p.toString();
+  // Literal ":" and "," keep share URLs readable; parsing accepts either form.
+  return p.toString().replaceAll("%3A", ":").replaceAll("%2C", ",");
 }

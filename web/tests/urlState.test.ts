@@ -36,6 +36,17 @@ describe("urlState", () => {
       expect(parse(serializeViewState(s))).toEqual({ state: s, warnings: [] });
   });
 
+  it("keeps ':' and ',' literal in share URLs", () => {
+    const s: ViewState = {
+      geo: "CBSA:12420",
+      series: ["a", "b"],
+      transform: "level",
+      range: "10y",
+    };
+    expect(serializeViewState(s)).toBe("geo=CBSA:12420&s=a,b");
+    expect(parse("geo=CBSA%3A12420&s=a%2Cb").state).toEqual(s);
+  });
+
   it("serialize omits defaults", () => {
     expect(serializeViewState({ geo: "US", series: [], transform: "level", range: "10y" })).toBe(
       "",
@@ -63,5 +74,8 @@ describe("urlState", () => {
     expect(state.rebase).toBeUndefined();
     expect(warnings).toHaveLength(2);
     expect(parse("r=3y").warnings).toHaveLength(1);
+    const bad = parse("r=2020-13-45..x");
+    expect(bad.state.range).toBe("10y");
+    expect(bad.warnings).toHaveLength(1);
   });
 });
