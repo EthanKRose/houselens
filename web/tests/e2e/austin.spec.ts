@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 
 const ZHVI = "zillow.zhvi.all.mid.sa";
-const FHFA = "fhfa.hpi.po.m.sa";
+const FHFA = "fhfa.hpi.at.q.nsa";
 const CASE_SHILLER = "fred.cs.metro.sa";
 // Must match COLUMNS in lib/csv.ts.
 const CSV_HEADER =
@@ -12,10 +12,7 @@ const box = (page: Page, id: string) => page.getByRole("checkbox", { name: new R
 
 test("Austin compare: select, export CSV, share link", async ({ page, browser }) => {
   await page.goto("/compare");
-  await page
-    .getByRole("button", { name: /United States|US/ })
-    .first()
-    .click();
+  await page.getByRole("button", { name: "United States", exact: true }).first().click();
   await page.getByPlaceholder(/Search by name/).fill("Austin");
   await page
     .getByRole("option", { name: /Austin/ })
@@ -45,11 +42,20 @@ test("Austin compare: select, export CSV, share link", async ({ page, browser })
   await page.getByRole("button", { name: "Export CSV" }).click();
   const csv = await readFile((await (await download).path())!, "utf8");
   expect(csv.split("\n").find((l) => !l.startsWith("#"))).toBe(CSV_HEADER);
-  expect(csv).toContain("CBSA:12420");
+  const rows = csv.split("\n");
+  // Per-row, so a national (US) series can't satisfy the Austin check.
+  for (const id of [ZHVI, FHFA]) {
+    expect(rows.find((l) => l.startsWith(`${id},`))).toContain(",CBSA:12420,");
+  }
 
-  const fresh = await (await browser.newContext()).newPage();
-  await fresh.goto(page.url());
-  await expect(box(fresh, ZHVI)).toBeChecked();
-  await expect(box(fresh, FHFA)).toBeChecked();
-  await expect(box(fresh, CASE_SHILLER)).not.toBeChecked();
+  const ctx = await browser.newContext();
+  const fresh = await ctx.newPage();
+  try {
+    await fresh.goto(page.url());
+    await expect(box(fresh, ZHVI)).toBeChecked();
+    await expect(box(fresh, FHFA)).toBeChecked();
+    await expect(box(fresh, CASE_SHILLER)).not.toBeChecked();
+  } finally {
+    await ctx.close();
+  }
 });
