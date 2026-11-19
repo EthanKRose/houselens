@@ -123,6 +123,12 @@ describe("compare", () => {
     );
     expect(csv).toContain("# Data: Zillow Research");
     expect(csv).toContain("# Data: FRED");
+    expect(csv).toContain("# release_date/vintage_date apply to the latest point of each series");
+    // dates only on each series' latest row: ZHVI yoy has many rows but one with a vintage date
+    const zhvi = csv.split("\n").filter((l) => l.startsWith("zillow.zhvi.all.mid.sa,"));
+    expect(zhvi.length).toBeGreaterThan(1);
+    expect(zhvi.filter((l) => l.split(",").at(-3) !== "")).toHaveLength(1);
+    expect(zhvi.at(-1)!.split(",").at(-3)).not.toBe("");
     // Austin ZHVI Oct 2026 vs Oct 2025 = -4.0856...%
     expect(csv).toMatch(
       /^zillow\.zhvi\.all\.mid\.sa,Zillow Research Data,.*,CBSA:12420,2026-10-01,2026-10-31,-4\.0856\d*,yoy,/m,

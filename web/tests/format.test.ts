@@ -25,4 +25,10 @@ describe("provenanceText", () => {
       ),
     ).toContain("SA · Period ending 2026-06-30 · Released 2026-08-26 · lag ~60 days");
   });
+
+  it("labels the dates as the latest point's when asked", () => {
+    expect(provenanceText(series, source, "2026-08-26", "2026-11-01", "2026-06-30", true)).toBe(
+      "FHFA House Price Index · repeat_sales · NSA · Period ending 2026-06-30 · Latest first seen 2026-08-26 · lag n/a · Latest vintage 2026-11-01",
+    );
+  });
 });

@@ -85,8 +85,10 @@ function View({
   }, [state, catalog, geo, geoFile, usFile, today]);
 
   const exportCsv = () => {
-    const rows: CsvRow[] = plotted.flatMap((p) =>
-      p.points.map((pt) => ({
+    const rows: CsvRow[] = plotted.flatMap((p) => {
+      // The dates describe only the series' latest point; earlier points have no known vintage.
+      const latestEnd = p.data.points.at(-1)?.[1];
+      return p.points.map((pt) => ({
         series_id: p.meta.series_id,
         source: p.source.name,
         method_family: p.meta.method_family,
@@ -96,11 +98,11 @@ function View({
         period_end: pt.end,
         value: pt.value,
         transform,
-        vintage_date: p.data.vintage_date,
-        release_date: p.data.release_date,
+        vintage_date: pt.end === latestEnd ? p.data.vintage_date : null,
+        release_date: pt.end === latestEnd ? p.data.release_date : null,
         quality_flags: pt.flags,
-      })),
-    );
+      }));
+    });
     const attributions = [...new Set(plotted.map((p) => p.source.attribution))];
     const url = URL.createObjectURL(new Blob([toCsv(rows, attributions)], { type: "text/csv" }));
     const a = document.createElement("a");

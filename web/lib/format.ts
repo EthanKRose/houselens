@@ -40,6 +40,7 @@ export function formatValue(value: number, unit: Metric["unit"]): string {
  * @param releaseDate - release date, or null
  * @param vintageDate - vintage date
  * @param periodEnd - end of the displayed period
+ * @param latest - true when the dates belong to the series' latest point, not the displayed one
  * @returns e.g. "FHFA · repeat_sales · NSA · Period ending … · Released … · lag ~60 days · Vintage …"
  */
 export function provenanceText(
@@ -48,8 +49,14 @@ export function provenanceText(
   releaseDate: string | null,
   vintageDate: string,
   periodEnd: string,
+  latest = false,
 ): string {
-  const released = series.release_date_kind === "published" ? "Released" : "First seen";
+  const published = series.release_date_kind === "published";
+  const released = latest
+    ? `Latest ${published ? "release" : "first seen"}`
+    : published
+      ? "Released"
+      : "First seen";
   const lag = series.typical_lag_days === null ? "lag n/a" : `lag ~${series.typical_lag_days} days`;
   return [
     source.name,
@@ -58,6 +65,6 @@ export function provenanceText(
     `Period ending ${periodEnd}`,
     `${released} ${releaseDate ?? "n/a"}`,
     lag,
-    `Vintage ${vintageDate}`,
+    `${latest ? "Latest vintage" : "Vintage"} ${vintageDate}`,
   ].join(" · ");
 }

@@ -55,7 +55,17 @@ export function SeriesChart({
               const s = series[seriesIndex];
               return [
                 `<strong>${esc(seriesName)}</strong>: ${formatValue(data.value[1], s.unit)}`,
-                esc(provenanceText(s.meta, s.source, s.releaseDate, s.vintageDate, data.value[0])),
+                // Dates are per series (latest point), so the tooltip must not imply they fit this point.
+                esc(
+                  provenanceText(
+                    s.meta,
+                    s.source,
+                    s.releaseDate,
+                    s.vintageDate,
+                    data.value[0],
+                    true,
+                  ),
+                ),
                 ...data.flags.map((f) => `Flag: ${esc(knownEvents[f] ?? f)}`),
               ].join("<br/>");
             })

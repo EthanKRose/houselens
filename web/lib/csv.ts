@@ -9,7 +9,7 @@ export type CsvRow = {
   period_end: string;
   value: number;
   transform: string;
-  vintage_date: string;
+  vintage_date: string | null;
   release_date: string | null;
   quality_flags: string[];
 };
@@ -40,6 +40,7 @@ const field = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replaceAll('"', '""')}"
 export function toCsv(rows: CsvRow[], attributions: string[]): string {
   return [
     ...attributions.map((a) => `# ${a.replace(/[\r\n]+/g, " ")}`),
+    "# release_date/vintage_date apply to the latest point of each series",
     COLUMNS.join(","),
     ...rows.map((r) =>
       COLUMNS.map((c) => {
