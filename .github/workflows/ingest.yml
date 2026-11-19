@@ -1,0 +1,110 @@
+name: Ingest and deploy
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+env:
+  R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: pipeline/uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # A non-404 failure here fails the job, so we never ingest onto an empty DB.
+      - name: Restore DB from R2
+        run: |
+          mkdir -p data/inputs data/reports
+          scripts/r2.sh get data/houselens.duckdb houselens.duckdb
+
+      # Only redfin/ is synced, so manual drops can never shadow live sources.
+      - name: Fetch manual Redfin drop
+        run: |
+          aws s3 sync "s3://${R2_BUCKET}/inputs/redfin/" data/inputs/redfin/ \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" --only-show-errors
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+
+      # Persist rule: upload the DB whenever ingest finished (exit 0, or 1 = some source
+      # failed) so vintages from the good sources are kept. Exit >1 (crash) or a missing
+      # DB means nothing trustworthy was written, so persist=false and R2 stays untouched.
+      - name: Ingest
+        id: ingest
+        working-directory: pipeline
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: |
+          set +e
+          uv run houselens ingest --db ../data/houselens.duckdb --input-dir ../data/inputs --report-dir ../data/reports
+          code=$?
+          set -e
+          persist=false
+          if [ "$code" -le 1 ] && [ -f ../data/houselens.duckdb ]; then persist=true; fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "persist=$persist" >> "$GITHUB_OUTPUT"
+
+      - name: Export JSON
+        if: steps.ingest.outputs.persist == 'true'
+        working-directory: pipeline
+        run: uv run houselens export --db ../data/houselens.duckdb --out ../web/public/data
+
+      - name: Build site
+        if: steps.ingest.outputs.persist == 'true'
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to Vercel
+        if: steps.ingest.outputs.persist == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx vercel@65.12.1 deploy web/out --prod --yes --token "$VERCEL_TOKEN"
+
+      - name: Persist DB to R2
+        if: always() && steps.ingest.outputs.persist == 'true'
+        run: scripts/r2.sh put data/houselens.duckdb houselens.duckdb
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingest-reports
+          path: data/reports
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # Re-raise the ingest exit code so a failed source fails the job (and emails the
+      # owner) only after last-good data was deployed and persisted.
+      - name: Fail if ingest failed
+        if: always() && steps.ingest.outputs.code != '' && steps.ingest.outputs.code != '0'
+        env:
+          INGEST_CODE: ${{ steps.ingest.outputs.code }}
+        run: exit "$INGEST_CODE"

@@ -33,3 +33,20 @@ GitHub Actions (daily cron)
 | `make lint-py` | ruff format --check, ruff check (incl. docstring rules), mypy --strict |
 
 Both run through `uv` from `pipeline/`.
+
+## Operating
+
+The nightly workflow (`.github/workflows/ingest.yml`, 12:00 UTC plus manual `workflow_dispatch`) restores the DuckDB file from a private R2 bucket, ingests, exports, builds, deploys to Vercel and writes the DB back (previous copy kept as `houselens.prev.duckdb`). A failed source still deploys last-good data and persists new vintages, but marks the run failed. If the R2 download fails for any reason other than "no such object", the run stops before ingest.
+
+**Required repository secrets:** `FRED_API_KEY`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
+
+**First run (owner steps):**
+
+1. Create a FRED API key.
+2. Create a private Cloudflare R2 bucket and an access token scoped to that bucket only.
+3. Create a Vercel project and token; note the org and project IDs.
+4. Add the secrets above, push the repo to GitHub, then trigger the workflow with `workflow_dispatch`. With no remote DB the first run creates a fresh one.
+
+**Redfin (manual drop):** HouseLens never fetches redfin.com. The Redfin source is disabled until written permission exists; afterwards, place the file under `inputs/redfin/` in the R2 bucket and the workflow syncs only that prefix into `data/inputs/redfin/`.
+
+**Status:** the first real run is PENDING. Nothing has been executed against R2, Vercel or FRED yet; only local lint (actionlint, shellcheck) has passed.
