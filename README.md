@@ -22,7 +22,7 @@ GitHub Actions (daily cron)
 ## Layout
 
 - `pipeline/`: Python 3.12 pipeline (uv, Polars, DuckDB, Pandera). See [pipeline/README.md](pipeline/README.md).
-- `web/`: Next.js static site (added in a later task).
+- `web/`: Next.js 15 static site (`output: "export"`), built to `web/out`.
 - `docs/`: spec, plans and per-source notes.
 
 ## Make targets
@@ -31,8 +31,11 @@ GitHub Actions (daily cron)
 |---|---|
 | `make test-py` | pytest in `pipeline/` |
 | `make lint-py` | ruff format --check, ruff check (incl. docstring rules), mypy --strict |
+| `make ingest` | real ingest into `data/houselens.duckdb` (needs `FRED_API_KEY`; fetches Zillow, FHFA and Realtor.com files) |
+| `make ingest-fixtures` | ingest the checked-in fixtures into `data/fixture.duckdb` (no network) |
+| `make site-data-fixtures` | `ingest-fixtures`, then export the fixture DB to `web/public/data/` (gitignored) for local web work |
 
-Both run through `uv` from `pipeline/`.
+All run through `uv` from `pipeline/`. Web checks run from `web/`: `npm run lint`, `npm run format:check`, `npm test`, `npm run build`, `npm run test:e2e`.
 
 ## Operating
 
@@ -46,6 +49,7 @@ The nightly workflow (`.github/workflows/ingest.yml`, 12:00 UTC plus manual `wor
 2. Create a private Cloudflare R2 bucket and an access token scoped to that bucket only.
 3. Create a Vercel project and token; note the org and project IDs. The project must use framework preset "Other" with no build command (static directory deploy of `web/out`); verify this on the first run.
 4. Add the secrets above, push the repo to GitHub, then trigger the workflow with `workflow_dispatch`. Dispatch with `first_run=true`: only then may the workflow create a fresh DB when R2 has none. Scheduled runs and normal dispatches fail instead, so history is never replaced by an empty DB.
+5. After the first deploy, hard-load a share link such as `/compare?geo=CBSA:12420` (paste it into a fresh tab, not a client-side navigation). The static export writes `compare.html`; `web/public/vercel.json` (`cleanUrls`) is what lets Vercel serve it at `/compare`. If it 404s, fix the Vercel project settings before announcing.
 
 **Redfin (manual drop):** HouseLens never fetches redfin.com. The Redfin source is disabled until written permission exists; afterwards, place the file under `inputs/redfin/` in the R2 bucket and the workflow syncs only that prefix into `data/inputs/redfin/`.
 

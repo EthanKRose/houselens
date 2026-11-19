@@ -7,7 +7,7 @@ sources:
     license_note: >-
       Mostly public domain, but some series are copyrighted by their owner (for example
       Case-Shiller); attribute the original owner.
-    attribution: "Data: FRED, Federal Reserve Bank of St. Louis; original sources S&P Dow Jones Indices, Freddie Mac, U.S. Census Bureau and U.S. Bureau of Labor Statistics."
+    attribution: "Data: FRED, Federal Reserve Bank of St. Louis; original sources S&P CoreLogic Case-Shiller (data: Cotality, formerly CoreLogic), Freddie Mac, U.S. Census Bureau and U.S. Bureau of Labor Statistics."
     enabled: true
   - source_id: fhfa
     name: FHFA House Price Index

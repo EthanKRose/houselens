@@ -6,15 +6,15 @@ to its source on every page that shows it.
 ## FRED (Federal Reserve Bank of St. Louis)
 
 Mostly public domain; some series are copyrighted by their owner (e.g., Case-Shiller). Attribute.
-Series from S&P Case-Shiller are attributed to S&P Dow Jones Indices (data: Cotality).
+Case-Shiller series are attributed to S&P CoreLogic Case-Shiller (data: Cotality, formerly CoreLogic).
 
-TODO: confirm wording in Task 9b.
+Displayed attribution: "Data: FRED, Federal Reserve Bank of St. Louis; original sources S&P CoreLogic Case-Shiller (data: Cotality, formerly CoreLogic), Freddie Mac, U.S. Census Bureau and U.S. Bureau of Labor Statistics."
 
 ## FHFA HPI (Federal Housing Finance Agency)
 
 Public domain.
 
-TODO: confirm wording in Task 9b.
+Displayed attribution: "Data: Federal Housing Finance Agency, House Price Index."
 
 ## Zillow Research
 
@@ -22,7 +22,7 @@ Free for public use with clear attribution. Never use Zillow or Bridge APIs to b
 stored database. Zillow's legacy public API was retired in 2021; the public research CSVs are
 the sanctioned route. Scraping Zillow pages is prohibited.
 
-TODO: confirm wording in Task 9b.
+Displayed attribution: "Data: Zillow Research (ZHVI, ZORI), used with attribution."
 
 ## Realtor.com Research
 
