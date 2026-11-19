@@ -24,9 +24,13 @@ key_exists() {
   echo "$n"
 }
 
+# Own statement (not inside [ ]) so set -e aborts if the listing fails.
+exists=$(key_exists)
+case "$exists" in 0 | 1) ;; *) echo "unexpected R2 listing result" >&2; exit 1 ;; esac
+
 case "$cmd" in
   get)
-    if [ "$(key_exists)" = 1 ]; then
+    if [ "$exists" = 1 ]; then
       aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors "s3://${R2_BUCKET}/${key}" "$local_path"
     elif [ "${ALLOW_FRESH:-}" = 1 ]; then
       echo "no remote DB (first run)"
@@ -36,7 +40,7 @@ case "$cmd" in
     fi
     ;;
   put)
-    if [ "$(key_exists)" = 1 ]; then
+    if [ "$exists" = 1 ]; then
       aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors "s3://${R2_BUCKET}/${key}" "s3://${R2_BUCKET}/${prev_key}"
     elif [ "${ALLOW_FRESH:-}" != 1 ]; then
       echo "no remote DB and ALLOW_FRESH is not set; refusing to create one" >&2

@@ -14,6 +14,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: pipeline/uv.lock
       - run: make lint-py test-py
+      - run: scripts/r2_test.sh
   web:
     runs-on: ubuntu-latest
     steps:
