@@ -6,6 +6,7 @@ import pytest
 from houselens_pipeline.db import connect
 from houselens_pipeline.geo import (
     load_geographies,
+    load_overrides,
     msad_codes,
     normalize_name,
     resolve_regions,
@@ -171,7 +172,5 @@ def test_realtor_codes_resolve() -> None:
 
 
 def test_every_override_target_exists() -> None:
-    from houselens_pipeline.geo import load_overrides
-
     targets = {g for m in load_overrides().values() for g in m.values()}
     assert targets and targets <= set(GEO["geo_id"])

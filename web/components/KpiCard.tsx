@@ -51,7 +51,9 @@ export function KpiCard({
 }) {
   const spark = useMemo(() => points.slice(-60).map((p) => p.value), [points]);
   const last = points[points.length - 1];
-  const yoy = applyTransform(points, "yoy", series.frequency).at(-1);
+  // The last YoY point can belong to an older period when the latest point has no year-ago partner.
+  const latestYoy = applyTransform(points, "yoy", series.frequency).at(-1);
+  const yoy = latestYoy?.end === last.end ? latestYoy : undefined;
   return (
     <Card>
       <CardHeader>
