@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AboutThisNumber } from "@/components/AboutThisNumber";
 import { FreshnessDot } from "@/components/FreshnessDot";
 import { SourceBadge } from "@/components/SourceBadge";
-import type { Catalog, Geography } from "@/lib/types";
+import type { Catalog, GeoFile, Geography } from "@/lib/types";
 
 const read = <T,>(f: string) => JSON.parse(readFileSync(`public/data/${f}`, "utf8")) as T;
 const catalog = read<Catalog>("catalog.json");
@@ -29,6 +29,14 @@ describe("SourceBadge", () => {
         s.typical_lag_days === null ? "lag n/a" : `lag ~${s.typical_lag_days} days`,
       );
       expect(text).toContain("Vintage 2026-01-03");
+      expect(text).toContain(s.method_family);
+      expect(text).toContain(s.seasonal_adj ? "SA" : "NSA");
+      expect(text).toContain("Period ending 2025-12-31");
+      expect(text).toContain(
+        s.release_date_kind === "published" ? "Released 2026-01-02" : "First seen 2026-01-02",
+      );
+      if (s.release_date_kind === "published") expect(text).not.toContain("First seen");
+      else expect(text).not.toContain("Released");
       unmount();
     }
   });
@@ -64,16 +72,20 @@ describe("SourceBadge", () => {
 });
 
 describe("FreshnessDot", () => {
-  it("has an accessible label", () => {
-    const f = {
-      last_period_end: "2026-01-01",
-      last_release_date: null,
-      last_ingest_at: null,
-      frequency: "monthly" as const,
-      typical_lag_days: 0,
-    };
-    render(<FreshnessDot freshness={f} today={new Date("2026-01-10T00:00:00Z")} />);
-    expect(screen.getByLabelText("Fresh")).toBeInTheDocument();
+  const f = {
+    last_period_end: "2026-01-01",
+    last_release_date: null,
+    last_ingest_at: null,
+    frequency: "monthly" as const,
+    typical_lag_days: 0,
+  };
+  it.each([
+    ["Fresh", "2026-01-10"],
+    ["Due", "2026-02-10"],
+    ["Stale", "2026-04-01"],
+  ])("labels %s accessibly", (label, today) => {
+    render(<FreshnessDot freshness={f} today={new Date(`${today}T00:00:00Z`)} />);
+    expect(screen.getByLabelText(label)).toBeInTheDocument();
   });
 });
 
@@ -93,9 +105,24 @@ describe("AboutThisNumber", () => {
     fireEvent.click(screen.getByRole("button", { name: /about this number/i }));
   };
 
-  it("shows the Oct 2025 CPI flag text", () => {
-    open("ST:36", ["cpi_carry_forward_2025_10"]);
-    expect(screen.getByText(/carried forward from April 2025/)).toBeInTheDocument();
+  it("shows the Oct 2025 flag text for the flagged CPI point", () => {
+    const us = read<GeoFile>("geo/US.json");
+    const cpi = catalog.series.find((x) => x.series_id === "fred.cpi.rent.sa")!;
+    const flagged = us.series[cpi.series_id].points.find((p) => p[0] === "2025-10-01")!;
+    expect(flagged[3]).toContain("cpi_carry_forward_2025_10");
+    render(
+      <AboutThisNumber
+        series={cpi}
+        source={src("fred")}
+        flags={flagged[3]}
+        knownEvents={catalog.known_events}
+        nonDisclosure={false}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /about this number/i }));
+    expect(
+      screen.getByText(`Flag: ${catalog.known_events.cpi_carry_forward_2025_10}`),
+    ).toBeInTheDocument();
   });
 
   it("shows non-disclosure note for ST:48 only", () => {

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { AboutThisNumber } from "@/components/AboutThisNumber";
 import { FreshnessDot } from "@/components/FreshnessDot";
 import { SourceBadge } from "@/components/SourceBadge";
@@ -48,6 +49,7 @@ export function KpiCard({
   nonDisclosure: boolean;
   national?: boolean;
 }) {
+  const spark = useMemo(() => points.slice(-60).map((p) => p.value), [points]);
   const last = points[points.length - 1];
   const yoy = applyTransform(points, "yoy", series.frequency).at(-1);
   return (
@@ -67,7 +69,7 @@ export function KpiCard({
           Period ending {last.end} · YoY{" "}
           {yoy ? `${yoy.value >= 0 ? "+" : ""}${yoy.value.toFixed(1)}%` : "n/a"}
         </p>
-        <Sparkline values={points.slice(-60).map((p) => p.value)} />
+        <Sparkline values={spark} />
         <SourceBadge
           series={series}
           source={source}

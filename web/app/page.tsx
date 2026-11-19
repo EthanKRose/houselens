@@ -23,6 +23,11 @@ function Cards({
   today: Date;
   national: boolean;
 }) {
+  const pts = useMemo(
+    () =>
+      Object.fromEntries(Object.entries(file.series).map(([id, s]) => [id, toPoints(s.points)])),
+    [file],
+  );
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Object.entries(file.series).map(([id, s]) => {
@@ -38,7 +43,7 @@ function Cards({
             series={series}
             metric={metric}
             source={source}
-            points={toPoints(s.points)}
+            points={pts[id]}
             releaseDate={s.release_date}
             vintageDate={s.vintage_date}
             freshness={freshness[id]}
@@ -58,9 +63,12 @@ function Dashboard() {
   const router = useRouter();
   const pathname = usePathname();
   const today = useMemo(() => new Date(), []);
-  const catalog = useCatalog().data;
-  const geos = useGeographies().data;
-  const freshness = useFreshness().data;
+  const catalogQ = useCatalog();
+  const geosQ = useGeographies();
+  const freshnessQ = useFreshness();
+  const catalog = catalogQ.data;
+  const geos = geosQ.data;
+  const freshness = freshnessQ.data;
   const { state, warnings } = useMemo(
     () =>
       parseViewState(new URLSearchParams(params.toString()), {
@@ -69,9 +77,14 @@ function Dashboard() {
       }),
     [params, geos, catalog],
   );
-  const geoFile = useGeoFile(state.geo).data;
-  const usFile = useGeoFile("US").data;
+  const geoQ = useGeoFile(state.geo);
+  const usQ = useGeoFile("US");
+  const geoFile = geoQ.data;
+  const usFile = usQ.data;
   const geo = geos?.find((g) => g.geo_id === state.geo);
+  if ([catalogQ, geosQ, freshnessQ, geoQ, usQ].some((q) => q.isError)) {
+    return <p role="alert">Could not load housing data. Please try again later.</p>;
+  }
   if (!catalog || !geos || !freshness || !geoFile || !usFile || !geo) return <p>Loading…</p>;
   const nat = state.geo !== "US";
   return (

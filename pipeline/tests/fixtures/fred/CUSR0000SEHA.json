@@ -1,0 +1,95 @@
+{
+  "_fixture_note": "hand-built; replace with real response once FRED_API_KEY exists",
+  "observations": [
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2024-09-01",
+      "value": "320.4"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2024-10-01",
+      "value": "320.8"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2024-11-01",
+      "value": "321.2"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2024-12-01",
+      "value": "321.6"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-01-01",
+      "value": "322.0"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-02-01",
+      "value": "322.4"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-03-01",
+      "value": "322.8"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-04-01",
+      "value": "323.2"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-05-01",
+      "value": "323.6"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-06-01",
+      "value": "324.0"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-07-01",
+      "value": "324.4"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-08-01",
+      "value": "324.8"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-09-01",
+      "value": "325.2"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-10-01",
+      "value": "325.2"
+    },
+    {
+      "realtime_start": "2025-12-10",
+      "realtime_end": "2025-12-10",
+      "date": "2025-11-01",
+      "value": "325.6"
+    }
+  ]
+}
