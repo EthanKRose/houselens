@@ -25,6 +25,13 @@ import { parseViewState, serializeViewState, type ViewState } from "@/lib/urlSta
 const unitOf = (t: Transform, unit: Metric["unit"]): Metric["unit"] =>
   t === "yoy" || t === "mom" ? "pct" : t === "rebased" ? "index" : unit;
 
+const LATEST: Record<Transform, string> = {
+  level: "Latest",
+  yoy: "Latest (YoY %)",
+  mom: "Latest (period-over-period %)",
+  rebased: "Latest (rebased)",
+};
+
 function View({
   state,
   catalog,
@@ -41,7 +48,7 @@ function View({
   usFile: GeoFile;
 }) {
   const today = useMemo(() => new Date(), []);
-  const { plotted, transform, mixed } = useMemo(() => {
+  const { plotted, transform, mixed, base } = useMemo(() => {
     const picked = state.series.flatMap((id) => {
       const meta = catalog.series.find((s) => s.series_id === id);
       const metric = catalog.metrics.find((m) => m.metric_id === meta?.metric_id);
@@ -52,22 +59,29 @@ function View({
     });
     const mixed = new Set(picked.map((p) => unitOf(state.transform, p.metric.unit))).size >= 3;
     const transform: Transform = mixed ? "rebased" : state.transform;
-    const plotted = picked.map((p) => {
-      const all = toPoints(p.data.points);
+    const all = picked.map((p) => toPoints(p.data.points));
+    // Common base: the latest first in-range start, so every line is 100 on the same date.
+    const base =
+      state.rebase ??
+      all
+        .map((ps) => filterRange(ps, state.range, today)[0]?.start)
+        .filter(Boolean)
+        .sort()
+        .at(-1);
+    const plotted = picked.map((p, i) => ({
+      ...p,
+      label: `${p.metric.label} · ${p.meta.series_id}${p.national ? " (US)" : ""}`,
+      unit: unitOf(transform, p.metric.unit),
+      releaseDate: p.data.release_date,
+      vintageDate: p.data.vintage_date,
       // Transform the full history, then window it, so YoY/MoM keep their first in-range points.
-      const base = state.rebase ?? filterRange(all, state.range, today)[0]?.start;
-      return {
-        ...p,
-        label: `${p.metric.label} · ${p.meta.series_id}${p.national ? " (US)" : ""}`,
-        unit: unitOf(transform, p.metric.unit),
-        points: filterRange(
-          applyTransform(all, transform, p.meta.frequency, base),
-          state.range,
-          today,
-        ),
-      };
-    });
-    return { plotted, transform, mixed };
+      points: filterRange(
+        applyTransform(all[i], transform, p.meta.frequency, base),
+        state.range,
+        today,
+      ),
+    }));
+    return { plotted, transform, mixed, base };
   }, [state, catalog, geo, geoFile, usFile, today]);
 
   const exportCsv = () => {
@@ -93,7 +107,8 @@ function View({
     a.href = url;
     a.download = `houselens-${geoFileName(geo.geo_id)}-${transform}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    // Revoking in the same tick can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url));
   };
 
   if (!plotted.length) return <p>Select up to 6 series to compare.</p>;
@@ -110,7 +125,11 @@ function View({
         <thead>
           <tr>
             <th scope="col">Series</th>
-            <th scope="col">Latest</th>
+            <th scope="col">
+              {transform === "rebased"
+                ? `Latest (rebased, 100 = ${base ?? "n/a"})`
+                : LATEST[transform]}
+            </th>
             <th scope="col">Provenance</th>
           </tr>
         </thead>
@@ -185,10 +204,9 @@ function Compare() {
   // Same query key as geoQ when US isn't needed, so nothing extra is fetched.
   const usQ = useGeoFile(needsUs ? "US" : state.geo);
   const geo = geos?.find((g) => g.geo_id === state.geo);
-  if ([catalogQ, geosQ, freshnessQ, geoQ, usQ].some((q) => q.isError)) {
-    return <p role="alert">Could not load housing data. Please try again later.</p>;
-  }
-  if (!catalog || !geos || !freshness || !geoQ.data || !usQ.data || !geo) return <p>Loading…</p>;
+  const failed = <p role="alert">Could not load housing data. Please try again later.</p>;
+  if (catalogQ.isError || geosQ.isError) return failed;
+  if (!catalog || !geos || !geo) return <p>Loading…</p>;
   return (
     <div className="space-y-6">
       <FilterBar
@@ -203,14 +221,21 @@ function Compare() {
           {w}
         </p>
       ))}
-      <View
-        state={state}
-        catalog={catalog}
-        freshness={freshness}
-        geo={geo}
-        geoFile={geoQ.data}
-        usFile={usQ.data}
-      />
+      {/* Only the results wait on per-geo data, so the controls keep focus and stay usable. */}
+      {[freshnessQ, geoQ, usQ].some((q) => q.isError) ? (
+        failed
+      ) : !freshness || !geoQ.data || !usQ.data ? (
+        <p>Loading…</p>
+      ) : (
+        <View
+          state={state}
+          catalog={catalog}
+          freshness={freshness}
+          geo={geo}
+          geoFile={geoQ.data}
+          usFile={usQ.data}
+        />
+      )}
     </div>
   );
 }

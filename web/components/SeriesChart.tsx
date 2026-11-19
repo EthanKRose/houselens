@@ -5,17 +5,20 @@ import { GridComponent, LegendComponent, TooltipComponent } from "echarts/compon
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
-import { formatValue } from "@/lib/format";
-import type { Metric, Point, SeriesMeta } from "@/lib/types";
+import { formatValue, provenanceText } from "@/lib/format";
+import type { Metric, Point, SeriesMeta, Source } from "@/lib/types";
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
-/** One plotted line: already transformed points in `unit`. */
+/** One plotted line: already transformed points in `unit`, plus its provenance. */
 export type ChartSeries = {
   meta: SeriesMeta;
+  source: Source;
   points: Point[];
   label: string;
   unit: Metric["unit"];
+  releaseDate: string | null;
+  vintageDate: string;
 };
 
 type Datum = { value: [string, number]; symbol: string; symbolSize: number; flags: string[] };
@@ -48,12 +51,14 @@ export function SeriesChart({
         trigger: "axis",
         formatter: (params: { seriesName: string; seriesIndex: number; data: Datum }[]) =>
           params
-            .map(({ seriesName, seriesIndex, data }) =>
-              [
-                `${esc(seriesName)}: ${formatValue(data.value[1], series[seriesIndex].unit)} (period ending ${data.value[0]})`,
+            .map(({ seriesName, seriesIndex, data }) => {
+              const s = series[seriesIndex];
+              return [
+                `<strong>${esc(seriesName)}</strong>: ${formatValue(data.value[1], s.unit)}`,
+                esc(provenanceText(s.meta, s.source, s.releaseDate, s.vintageDate, data.value[0])),
                 ...data.flags.map((f) => `Flag: ${esc(knownEvents[f] ?? f)}`),
-              ].join("<br/>"),
-            )
+              ].join("<br/>");
+            })
             .join("<br/>"),
       },
       xAxis: { type: "time" },
@@ -66,16 +71,26 @@ export function SeriesChart({
         type: "line",
         name: s.label,
         yAxisIndex: units.indexOf(s.unit),
-        connectNulls: false,
-        data: s.points.map((p): Datum => ({
-          value: [p.end, p.value],
-          symbol: p.flags.length ? "diamond" : "none",
-          symbolSize: p.flags.length ? 10 : 0,
-          flags: p.flags,
-        })),
+        data: s.points.map((p): Datum => {
+          // A lone point draws no line, so it needs a symbol to be visible at all.
+          const lone = s.points.length <= 1;
+          return {
+            value: [p.end, p.value],
+            symbol: p.flags.length ? "diamond" : lone ? "circle" : "none",
+            symbolSize: p.flags.length ? 10 : lone ? 6 : 0,
+            flags: p.flags,
+          };
+        }),
       })),
     });
-    return () => chart.dispose();
+    // jsdom has no ResizeObserver.
+    const ro =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => chart.resize());
+    ro?.observe(ref.current);
+    return () => {
+      ro?.disconnect();
+      chart.dispose();
+    };
   }, [series, knownEvents]);
   return (
     <div

@@ -14,6 +14,15 @@ const TRANSFORMS: [Transform, string][] = [
   ["rebased", "Rebased to 100"],
 ];
 const RANGES = ["1y", "5y", "10y", "max"] as const;
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/** The last ten years as an explicit range, the starting point for a custom range. */
+function lastTenYears(): { start: string; end: string } {
+  const d = new Date();
+  const end = iso(d);
+  d.setUTCFullYear(d.getUTCFullYear() - 10);
+  return { start: iso(d), end };
+}
 
 /** Why a series can't be shown for a geography, or null if it can. */
 function unavailableReason(s: SeriesMeta, g: Geography): string | null {
@@ -61,8 +70,12 @@ export function FilterBar({
       series: on ? state.series.filter((x) => x !== id) : [...state.series, id],
     });
   };
-  const custom =
-    typeof state.range === "object" ? `${state.range.start}..${state.range.end}` : null;
+  const custom = typeof state.range === "object" ? state.range : null;
+  const setCustom = (part: "start" | "end", value: string) => {
+    const range = { ...custom!, [part]: value };
+    // Ignore cleared or inverted pairs; the URL parser would reject them anyway.
+    if (range.start && range.end && range.start <= range.end) onChange({ ...state, range });
+  };
   return (
     <div className="space-y-4">
       <GeoPicker
@@ -97,6 +110,9 @@ export function FilterBar({
                     {metric?.label ?? s.metric_id} · {source?.name ?? s.source_id}{" "}
                     <span className="text-muted-foreground text-xs">{s.series_id}</span>
                     {s.national_only && geography.geo_id !== "US" && " (US)"}
+                    {s.source_id === "realtor" && (
+                      <strong className="text-xs"> Listing data (asking prices), not sales</strong>
+                    )}
                     {reason && <span className="text-muted-foreground text-xs"> — {reason}</span>}
                   </span>
                 </label>
@@ -120,21 +136,59 @@ export function FilterBar({
             ))}
           </select>
         </label>
+        {state.transform === "rebased" && (
+          <label className="flex items-center gap-2">
+            Rebase date
+            <input
+              type="date"
+              className="rounded border px-2 py-1"
+              value={state.rebase ?? ""}
+              onChange={(e) => onChange({ ...state, rebase: e.target.value || undefined })}
+            />
+          </label>
+        )}
         <label className="flex items-center gap-2">
           Range
           <select
             className="rounded border px-2 py-1"
-            value={custom ?? (state.range as string)}
-            onChange={(e) => onChange({ ...state, range: e.target.value as Range })}
+            value={custom ? "custom" : (state.range as string)}
+            onChange={(e) =>
+              onChange({
+                ...state,
+                range: e.target.value === "custom" ? lastTenYears() : (e.target.value as Range),
+              })
+            }
           >
             {RANGES.map((r) => (
               <option key={r} value={r}>
                 {r === "max" ? "All" : r}
               </option>
             ))}
-            {custom && <option value={custom}>{custom}</option>}
+            <option value="custom">Custom</option>
           </select>
         </label>
+        {custom && (
+          <>
+            <label className="flex items-center gap-2">
+              Range start
+              <input
+                type="date"
+                className="rounded border px-2 py-1"
+                value={custom.start}
+                onChange={(e) => setCustom("start", e.target.value)}
+              />
+            </label>
+            <label className="flex items-center gap-2">
+              Range end
+              <input
+                type="date"
+                className="rounded border px-2 py-1"
+                value={custom.end}
+                onChange={(e) => setCustom("end", e.target.value)}
+              />
+            </label>
+          </>
+        )}
       </div>
     </div>
   );

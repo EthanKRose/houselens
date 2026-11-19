@@ -1,3 +1,4 @@
+import { provenanceText } from "@/lib/format";
 import type { SeriesMeta, Source } from "@/lib/types";
 
 /**
@@ -23,12 +24,9 @@ export function SourceBadge({
   vintageDate: string;
   periodEnd: string;
 }) {
-  const released = series.release_date_kind === "published" ? "Released" : "First seen";
-  const lag = series.typical_lag_days === null ? "lag n/a" : `lag ~${series.typical_lag_days} days`;
   return (
     <p className="text-muted-foreground text-xs">
-      {source.name} · {series.method_family} · {series.seasonal_adj ? "SA" : "NSA"} · Period ending{" "}
-      {periodEnd} · {released} {releaseDate ?? "n/a"} · {lag} · Vintage {vintageDate}
+      {provenanceText(series, source, releaseDate, vintageDate, periodEnd)}
       {series.source_id === "realtor" && (
         <>
           {" "}
