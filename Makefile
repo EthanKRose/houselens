@@ -1,4 +1,4 @@
-.PHONY: test-py lint-py ingest-fixtures ingest
+.PHONY: site-data-fixtures test-py lint-py ingest-fixtures ingest
 
 test-py:
 	cd pipeline && uv run pytest
@@ -13,3 +13,7 @@ ingest-fixtures:
 ingest:
 	mkdir -p data && cd pipeline && uv run houselens ingest --db ../data/houselens.duckdb \
 		--report-dir ../data/reports
+
+site-data-fixtures: ingest-fixtures
+	mkdir -p web/public/data && cd pipeline && uv run houselens export --db ../data/fixture.duckdb \
+		--out ../web/public/data

@@ -74,3 +74,12 @@ def sync_geographies(con: duckdb.DuckDBPyConnection) -> None:
         " VALUES (?,?,?,?,?)",
         load_geographies().rows(),
     )
+
+
+def msad_cbsa_codes() -> frozenset[str]:
+    """Return the CBSA codes that contain at least one Metropolitan Division.
+
+    Returns:
+        Five-digit CBSA codes.
+    """
+    return frozenset(_csv("msad.csv")["cbsa_code"])

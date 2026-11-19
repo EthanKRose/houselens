@@ -19,6 +19,7 @@ from houselens_pipeline.adapters.realtor import RealtorAdapter
 from houselens_pipeline.adapters.zillow import ZillowAdapter
 from houselens_pipeline.catalog import Catalog, load_catalog, sync_catalog
 from houselens_pipeline.db import connect
+from houselens_pipeline.export import export_site_data
 from houselens_pipeline.geo.reference import sync_geographies
 from houselens_pipeline.geo.resolve import resolve_regions
 from houselens_pipeline.ingest import IngestResult, write_vintage
@@ -160,7 +161,7 @@ def run(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Parse the command line and run ``houselens ingest``.
+    """Parse the command line and run ``houselens ingest`` or ``houselens export``.
 
     Args:
         argv: Arguments without the program name; defaults to ``sys.argv[1:]``.
@@ -177,7 +178,17 @@ def main(argv: list[str] | None = None) -> int:
     ing.add_argument("--input-dir", type=Path)
     ing.add_argument("--report-dir", type=Path, default=Path("reports"))
     ing.add_argument("--max-unmatched-share", type=float, default=MAX_UNMATCHED_SHARE)
+    exp = sub.add_parser("export", help="export site JSON from a database")
+    exp.add_argument("--db", type=Path, required=True)
+    exp.add_argument("--out", type=Path, required=True)
     a = p.parse_args(argv)
+    if a.command == "export":
+        con = connect(a.db)
+        try:
+            export_site_data(con, a.out, load_catalog())
+        finally:
+            con.close()
+        return 0
     sources = (
         a.sources.split(",")
         if a.sources
