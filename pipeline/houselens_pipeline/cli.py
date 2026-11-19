@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import traceback
 import uuid
 from collections.abc import Callable
 from datetime import date
@@ -167,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
         argv: Arguments without the program name; defaults to ``sys.argv[1:]``.
 
     Returns:
-        The process exit code.
+        The process exit code: 0 ok, 1 some source failed, 2 crash.
     """
     p = argparse.ArgumentParser(prog="houselens")
     sub = p.add_subparsers(dest="command", required=True)
@@ -182,6 +183,15 @@ def main(argv: list[str] | None = None) -> int:
     exp.add_argument("--db", type=Path, required=True)
     exp.add_argument("--out", type=Path, required=True)
     a = p.parse_args(argv)
+    try:
+        return _dispatch(a)
+    except Exception:  # noqa: BLE001
+        # exit 2 = crash: ingest.yml must not overwrite the R2 rollback DB with a bad one
+        traceback.print_exc()
+        return 2
+
+
+def _dispatch(a: argparse.Namespace) -> int:
     if a.command == "export":
         con = connect(a.db)
         try:

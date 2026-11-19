@@ -145,3 +145,34 @@ def test_polars_panic_isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     runs = _runs(tmp_path / "t.duckdb")
     assert runs["fhfa"][0] == "failed" and "boom" in runs["fhfa"][2]
     assert runs["zillow"][0] == "ok" and runs["zillow"][1] > 0
+
+
+def test_crash_exits_2(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*_: object, **__: object) -> None:
+        raise RuntimeError("db exploded")
+
+    monkeypatch.setattr(cli, "connect", boom)
+    argv = ["ingest", "--db", str(tmp_path / "c.duckdb"), "--sources", "fhfa"]
+    assert cli.main(argv) == 2
+    assert cli.main(["export", "--db", str(tmp_path / "c.duckdb"), "--out", str(tmp_path)]) == 2
+
+
+def _fhfa_points(out: Path) -> dict[str, list[object]]:
+    got: dict[str, list[object]] = {}
+    for p in sorted(out.rglob("*.json")):
+        series = json.loads(p.read_text()).get("series", {}) if p.parent.name == "geo" else {}
+        got |= {f"{p.name}:{k}": v["points"] for k, v in series.items() if k.startswith("fhfa.")}
+    return got
+
+
+def test_broken_part_keeps_earlier_vintage_in_export(tmp_path: Path) -> None:
+    db = str(tmp_path / "t.duckdb")
+    assert _run(tmp_path) == 0
+    assert cli.main(["export", "--db", db, "--out", str(tmp_path / "before")]) == 0
+    broken = tmp_path / "in"
+    shutil.copytree(FIXTURES, broken)
+    (broken / "fhfa" / "hpi_master.csv").write_text("not,a,valid\nfile\n")
+    assert _run(tmp_path, broken) == 1
+    assert cli.main(["export", "--db", db, "--out", str(tmp_path / "after")]) == 0
+    before = _fhfa_points(tmp_path / "before")
+    assert before and _fhfa_points(tmp_path / "after") == before
