@@ -168,3 +168,10 @@ def test_realtor_codes_resolve() -> None:
     r = resolve_regions("realtor", regions(*((c, None, "CBSA", c) for c in sorted(codes))))
     assert r.unmatched.is_empty() and r.skipped_by_rule.is_empty()
     assert r.mapping.height == len(codes)
+
+
+def test_every_override_target_exists() -> None:
+    from houselens_pipeline.geo import load_overrides
+
+    targets = {g for m in load_overrides().values() for g in m.values()}
+    assert targets and targets <= set(GEO["geo_id"])

@@ -1,3 +1,7 @@
 # Manual vendor region -> geo_id overrides, applied before any other rule.
 # {source_id: {vendor_region_id: geo_id}}
-{}
+zillow:
+  "845159": "CBSA:28880"  # Poughkeepsie
+  "395153": "CBSA:48680"  # The Villages
+  "394437": "CBSA:15860"  # Cañon City
+  "394574": "CBSA:21580"  # Española
