@@ -58,8 +58,9 @@ jobs:
           AWS_DEFAULT_REGION: auto
 
       # Persist rule: upload the DB whenever ingest finished (exit 0, or 1 = some source
-      # failed) so vintages from the good sources are kept. Exit >1 (crash) or a missing
-      # DB means nothing trustworthy was written, so persist=false and R2 stays untouched.
+      # failed) so vintages from the good sources are kept. Exit >1 (cli.py maps any uncaught
+      # exception to 2) or a missing DB means nothing trustworthy was written, so
+      # persist=false and R2 stays untouched.
       - name: Ingest
         id: ingest
         working-directory: pipeline
