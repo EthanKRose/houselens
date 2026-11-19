@@ -35,7 +35,8 @@ def export_site_data(con: duckdb.DuckDBPyConnection, out_dir: Path, catalog: Cat
 
     geos_by_series: dict[str, list[str]] = {}
     for sid, gid in con.execute(
-        "select distinct series_id, geo_id from observation_latest order by 1, 2"
+        "select distinct series_id, geo_id from observation_latest where value is not null"
+        " order by 1, 2"
     ).fetchall():
         geos_by_series.setdefault(sid, []).append(gid)
     series = [s for s in catalog.series if s.source_id in enabled and s.series_id in geos_by_series]
@@ -77,7 +78,7 @@ def export_site_data(con: duckdb.DuckDBPyConnection, out_dir: Path, catalog: Cat
             {
                 "geo_id": g, "level": lv, "name": nm, "state_fips": st,
                 "non_disclosure": nd,
-                "has_msad": lv == "cbsa" and g.removeprefix("CBSA:") in msad,
+                "has_msad": lv == "CBSA" and g.removeprefix("CBSA:") in msad,
                 "series_ids": ids_by_geo[g],
             }
             for g, lv, nm, st, nd in geos
@@ -86,7 +87,8 @@ def export_site_data(con: duckdb.DuckDBPyConnection, out_dir: Path, catalog: Cat
     )  # fmt: skip
 
     fresh = con.execute(
-        "select series_id, max(period_end), max(release_date) from observation_latest group by 1"
+        "select series_id, max(period_end), max(release_date) from observation_latest"
+        " where value is not null group by 1"
     ).fetchall()
     ingested = dict(
         con.execute(

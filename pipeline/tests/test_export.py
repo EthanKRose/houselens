@@ -86,3 +86,27 @@ def test_stale_geo_files_removed(out: Path) -> None:
     export_site_data(con, out, load_catalog())
     con.close()
     assert not (out / "geo" / "OLD_1.json").exists()
+
+
+def test_geographies_and_freshness_shape(out: Path) -> None:
+    geos = _load(out / "geographies.json")
+    assert isinstance(geos, list)
+    for g in geos:
+        assert set(g) == {
+            "geo_id", "level", "name", "state_fips", "non_disclosure", "has_msad", "series_ids"
+        }  # fmt: skip
+        assert g["series_ids"]
+    assert next(g for g in geos if g["geo_id"] == "CBSA:12420")["has_msad"] is False
+    fresh = _load(out / "freshness.json")
+    assert isinstance(fresh, dict) and fresh
+    for f in fresh.values():
+        assert set(f) == {
+            "last_period_end", "last_release_date", "last_ingest_at", "frequency",
+            "typical_lag_days",
+        }  # fmt: skip
+
+
+def test_has_msad_true_for_new_york(out: Path) -> None:
+    geos = _load(out / "geographies.json")
+    assert isinstance(geos, list)
+    assert next(g for g in geos if g["geo_id"] == "CBSA:35620")["has_msad"] is True
