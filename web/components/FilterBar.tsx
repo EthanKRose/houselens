@@ -9,12 +9,17 @@ import type { ViewState } from "@/lib/urlState";
 
 const MAX_SERIES = 6;
 const TRANSFORMS: [Transform, string][] = [
-  ["level", "Level"],
-  ["yoy", "Year over year %"],
-  ["mom", "Period over period %"],
-  ["rebased", "Rebased to 100"],
+  ["level", "Actual values"],
+  ["yoy", "% change from a year earlier"],
+  ["mom", "% change from the previous period"],
+  ["rebased", "Growth since a start date (= 100)"],
 ];
-const RANGES = ["1y", "5y", "10y", "max"] as const;
+const RANGES: [Exclude<Range, object>, string][] = [
+  ["1y", "Last year"],
+  ["5y", "Last 5 years"],
+  ["10y", "Last 10 years"],
+  ["max", "All available"],
+];
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /** The last ten years as an explicit range, the starting point for a custom range. */
@@ -128,7 +133,7 @@ export function FilterBar({
       </fieldset>
       <div className="flex flex-wrap gap-4 text-sm">
         <label className="flex items-center gap-2">
-          Transform
+          Show as
           <select
             className="rounded border px-2 py-1"
             value={state.transform}
@@ -143,7 +148,7 @@ export function FilterBar({
         </label>
         {state.transform === "rebased" && (
           <label className="flex items-center gap-2">
-            Rebase date
+            Start date (= 100)
             <input
               type="date"
               className="rounded border px-2 py-1"
@@ -153,7 +158,7 @@ export function FilterBar({
           </label>
         )}
         <label className="flex items-center gap-2">
-          Range
+          Time period
           <select
             className="rounded border px-2 py-1"
             value={custom ? "custom" : (state.range as string)}
@@ -164,18 +169,18 @@ export function FilterBar({
               })
             }
           >
-            {RANGES.map((r) => (
+            {RANGES.map(([r, name]) => (
               <option key={r} value={r}>
-                {r === "max" ? "All" : r}
+                {name}
               </option>
             ))}
-            <option value="custom">Custom</option>
+            <option value="custom">Custom dates</option>
           </select>
         </label>
         {custom && (
           <>
             <label className="flex items-center gap-2">
-              Range start
+              From
               <input
                 type="date"
                 className="rounded border px-2 py-1"
@@ -184,7 +189,7 @@ export function FilterBar({
               />
             </label>
             <label className="flex items-center gap-2">
-              Range end
+              To
               <input
                 type="date"
                 className="rounded border px-2 py-1"

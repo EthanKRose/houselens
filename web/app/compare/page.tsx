@@ -18,7 +18,7 @@ import {
   useGeoFile,
   useGeographies,
 } from "@/lib/data";
-import { formatValue } from "@/lib/format";
+import { formatDate, formatValue } from "@/lib/format";
 import { applyTransform, filterRange, type Transform } from "@/lib/transforms";
 import type { Catalog, Freshness, GeoFile, Geography, Metric } from "@/lib/types";
 import { parseViewState, serializeViewState, type ViewState } from "@/lib/urlState";
@@ -27,10 +27,10 @@ const unitOf = (t: Transform, unit: Metric["unit"]): Metric["unit"] =>
   t === "yoy" || t === "mom" ? "pct" : t === "rebased" ? "index" : unit;
 
 const LATEST: Record<Transform, string> = {
-  level: "Latest",
-  yoy: "Latest (YoY %)",
-  mom: "Latest (period-over-period %)",
-  rebased: "Latest (rebased)",
+  level: "Latest value",
+  yoy: "Latest % change from a year earlier",
+  mom: "Latest % change from the previous period",
+  rebased: "Latest (start = 100)",
 };
 
 function View({
@@ -129,7 +129,8 @@ function View({
       {note}
       {mixed && (
         <p className="text-sm text-amber-700">
-          Rebased to 100 because the selection mixes 3+ units.
+          Shown as growth since a common start date (= 100), because these series use 3 or more
+          different units.
         </p>
       )}
       <SeriesChart series={plotted} knownEvents={catalog.known_events} />
@@ -140,10 +141,10 @@ function View({
             <th scope="col">Series</th>
             <th scope="col">
               {transform === "rebased"
-                ? `Latest (rebased, 100 = ${base ?? "n/a"})`
+                ? `Latest (${base ? formatDate(base) : "start"} = 100)`
                 : LATEST[transform]}
             </th>
-            <th scope="col">Provenance</th>
+            <th scope="col">Source and details</th>
           </tr>
         </thead>
         <tbody>

@@ -165,10 +165,10 @@ describe("compare", () => {
   it("rebases 3+ units to 100 at a common base date, with a note", async () => {
     const got = download();
     show(`${AUSTIN}&s=zillow.zhvi.all.mid.sa,fhfa.hpi.at.q.nsa,realtor.dom.all.nsa`);
-    expect(await screen.findByText(/Rebased to 100 because the selection mixes 3\+ units/));
-    expect(screen.getByRole("combobox", { name: "Transform" })).toHaveValue("level");
+    expect(await screen.findByText(/because these series use 3 or more different units/));
+    expect(screen.getByRole("combobox", { name: "Show as" })).toHaveValue("level");
     // Latest series start is 2025-09-01; FHFA's base is its nearest earlier point (2025-07-01).
-    expect(screen.getByRole("columnheader", { name: "Latest (rebased, 100 = 2025-09-01)" }));
+    expect(screen.getByRole("columnheader", { name: "Latest (Sep 1, 2025 = 100)" }));
     const value = (id: string) =>
       within(screen.getByRole("row", { name: new RegExp(id.replaceAll(".", "\\.")) })).getAllByRole(
         "cell",
@@ -205,12 +205,12 @@ describe("compare", () => {
 
   it("edits a custom range", async () => {
     show(`${AUSTIN}&s=zillow.zhvi.all.mid.sa&r=2026-01-01..2026-06-30`);
-    expect(await screen.findByRole("combobox", { name: "Range" })).toHaveValue("custom");
-    fireEvent.change(screen.getByLabelText("Range start"), { target: { value: "2026-03-01" } });
+    expect(await screen.findByRole("combobox", { name: "Time period" })).toHaveValue("custom");
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-03-01" } });
     expect(replace).toHaveBeenLastCalledWith(
       "/compare?geo=CBSA:12420&s=zillow.zhvi.all.mid.sa&r=2026-03-01..2026-06-30",
     );
-    fireEvent.change(screen.getByLabelText("Range end"), { target: { value: "2026-09-30" } });
+    fireEvent.change(screen.getByLabelText("To"), { target: { value: "2026-09-30" } });
     expect(replace).toHaveBeenLastCalledWith(
       "/compare?geo=CBSA:12420&s=zillow.zhvi.all.mid.sa&r=2026-01-01..2026-09-30",
     );
@@ -219,7 +219,7 @@ describe("compare", () => {
   it("switches to a custom range from a preset", async () => {
     show(AUSTIN);
     expect(screen.queryByLabelText("Range start")).toBeNull();
-    fireEvent.change(await screen.findByRole("combobox", { name: "Range" }), {
+    fireEvent.change(await screen.findByRole("combobox", { name: "Time period" }), {
       target: { value: "custom" },
     });
     expect(replace.mock.lastCall![0]).toMatch(/&r=\d{4}-\d{2}-\d{2}\.\.\d{4}-\d{2}-\d{2}$/);
@@ -227,17 +227,17 @@ describe("compare", () => {
 
   it("sets a rebase date when rebased", async () => {
     const view = show(`${AUSTIN}&s=zillow.zhvi.all.mid.sa`);
-    await screen.findByRole("combobox", { name: "Transform" });
-    expect(screen.queryByLabelText("Rebase date")).toBeNull();
+    await screen.findByRole("combobox", { name: "Show as" });
+    expect(screen.queryByLabelText("Start date (= 100)")).toBeNull();
     view.go(`${AUSTIN}&s=zillow.zhvi.all.mid.sa&t=rebased`);
-    fireEvent.change(await screen.findByLabelText("Rebase date"), {
+    fireEvent.change(await screen.findByLabelText("Start date (= 100)"), {
       target: { value: "2026-10-01" },
     });
     expect(replace).toHaveBeenLastCalledWith(
       "/compare?geo=CBSA:12420&s=zillow.zhvi.all.mid.sa&t=rebased&b=2026-10-01",
     );
     view.go(`${AUSTIN}&s=zillow.zhvi.all.mid.sa&t=rebased&b=2026-10-01`);
-    expect(await screen.findByRole("columnheader", { name: "Latest (rebased, 100 = 2026-10-01)" }));
+    expect(await screen.findByRole("columnheader", { name: "Latest (Oct 1, 2026 = 100)" }));
     expect(screen.getByRole("row", { name: /zillow\.zhvi/ })).toHaveTextContent("100.0");
   });
 

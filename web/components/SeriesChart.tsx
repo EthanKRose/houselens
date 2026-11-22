@@ -45,8 +45,9 @@ export function SeriesChart({
     const esc = echarts.format.encodeHTML;
     const chart = echarts.init(ref.current);
     chart.setOption({
-      grid: { left: 64, right: units.length > 1 ? 64 : 16, top: 40, bottom: 32 },
-      legend: { type: "scroll" },
+      // Legend sits under the date axis so the two never overlap on narrow screens.
+      grid: { left: 64, right: units.length > 1 ? 64 : 16, top: 24, bottom: 64 },
+      legend: { type: "scroll", bottom: 0 },
       tooltip: {
         trigger: "axis",
         formatter: (params: { seriesName: string; seriesIndex: number; data: Datum }[]) =>
