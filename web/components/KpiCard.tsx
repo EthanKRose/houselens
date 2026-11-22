@@ -5,7 +5,7 @@ import { SourceBadge } from "@/components/SourceBadge";
 import { SeriesInfo } from "@/components/SeriesInfo";
 import { Sparkline } from "@/components/Sparkline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatValue } from "@/lib/format";
+import { formatDate, formatValue } from "@/lib/format";
 import { applyTransform } from "@/lib/transforms";
 import type { Freshness, Metric, Point, SeriesMeta, Source } from "@/lib/types";
 
@@ -70,8 +70,8 @@ export function KpiCard({
       <CardContent className="space-y-2">
         <p className="text-2xl font-semibold">{formatValue(last.value, metric.unit)}</p>
         <p className="text-sm">
-          Period ending {last.end} · YoY{" "}
-          {yoy ? `${yoy.value >= 0 ? "+" : ""}${yoy.value.toFixed(1)}%` : "n/a"}
+          Period ending {formatDate(last.end)} · Change from a year earlier{" "}
+          {yoy ? `${yoy.value >= 0 ? "+" : ""}${yoy.value.toFixed(1)}%` : "not available"}
         </p>
         <Sparkline values={spark} />
         <SourceBadge

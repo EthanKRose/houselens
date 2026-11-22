@@ -33,11 +33,15 @@ const card = (points: Point[]) =>
 
 describe("KpiCard YoY", () => {
   it("shows YoY when the latest point has a year-ago partner", () => {
-    expect(card([pt("2024-03", 100), pt("2025-03", 110)])).toContain("YoY +10.0%");
+    expect(card([pt("2024-03", 100), pt("2025-03", 110)])).toContain(
+      "Change from a year earlier +10.0%",
+    );
   });
 
   it("shows n/a, not an older period's YoY, when the latest point lacks a partner", () => {
     // 2025-02 has a partner (2024-02) but the latest point 2025-03 does not
-    expect(card([pt("2024-02", 100), pt("2025-02", 110), pt("2025-03", 111)])).toContain("YoY n/a");
+    expect(card([pt("2024-02", 100), pt("2025-02", 110), pt("2025-03", 111)])).toContain(
+      "Change from a year earlier not available",
+    );
   });
 });

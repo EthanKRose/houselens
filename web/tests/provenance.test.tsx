@@ -26,17 +26,21 @@ describe("SourceBadge", () => {
       const text = container.textContent!;
       expect(text).toContain(src(s.source_id).name);
       expect(text).toContain(
-        s.typical_lag_days === null ? "lag n/a" : `lag ~${s.typical_lag_days} days`,
+        s.typical_lag_days === null
+          ? "Usual delay unknown"
+          : `Usually published about ${s.typical_lag_days} days after the period ends`,
       );
-      expect(text).toContain("Vintage 2026-01-03");
-      expect(text).toContain(s.method_family);
-      expect(text).toContain(s.seasonal_adj ? "SA" : "NSA");
-      expect(text).toContain("Period ending 2025-12-31");
+      expect(text).toContain("Data version from Jan 3, 2026");
+      expect(text).not.toMatch(/\b[a-z]+_[a-z]+\b/); // no raw codes like repeat_sales
+      expect(text).toContain(s.seasonal_adj ? "· Seasonally adjusted" : "Not seasonally adjusted");
+      expect(text).toContain("Period ending Dec 31, 2025");
       expect(text).toContain(
-        s.release_date_kind === "published" ? "Released 2026-01-02" : "First seen 2026-01-02",
+        s.release_date_kind === "published"
+          ? "Published on Jan 2, 2026"
+          : "First seen by HouseLens on Jan 2, 2026",
       );
       if (s.release_date_kind === "published") expect(text).not.toContain("First seen");
-      else expect(text).not.toContain("Released");
+      else expect(text).not.toContain("Published");
       unmount();
     }
   });
@@ -52,8 +56,8 @@ describe("SourceBadge", () => {
         periodEnd="p"
       />,
     );
-    expect(screen.getByText(/First seen 2026-01-02/)).toBeInTheDocument();
-    expect(screen.queryByText(/Released/)).toBeNull();
+    expect(screen.getByText(/First seen by HouseLens on Jan 2, 2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/Published/)).toBeNull();
   });
 
   it("flags Realtor.com as listing data", () => {

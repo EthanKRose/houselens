@@ -58,7 +58,7 @@ describe("SeriesChart", () => {
     ]);
     expect(tip).toContain("Flag text");
     expect(tip).toContain(
-      "FHFA House Price Index · repeat_sales · SA · Period ending 2026-02-28 · Latest release 2026-03-10 · lag ~60 days · Latest vintage 2026-03-11",
+      "FHFA House Price Index · Repeat-sales index · Seasonally adjusted · Period ending Feb 28, 2026 · Latest point published on Mar 10, 2026 · Usually published about 60 days after the period ends · Latest data version from Mar 11, 2026",
     );
   });
 });
