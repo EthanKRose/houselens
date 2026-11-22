@@ -6,6 +6,8 @@ release as a dated vintage, and publishes a static site where every number shows
 method, seasonal adjustment, release date and vintage date. Sources and their terms are listed in
 [LICENSES.md](LICENSES.md); the design is in [docs/spec.md](docs/spec.md).
 
+**Live site:** https://houselens-us.vercel.app (the original `houselens-five.vercel.app` permanently redirects there).
+
 ## Data flow
 
 ```
@@ -53,4 +55,4 @@ The nightly workflow (`.github/workflows/ingest.yml`, 12:00 UTC plus manual `wor
 
 **Redfin (manual drop):** HouseLens never fetches redfin.com. The Redfin source is disabled until written permission exists; afterwards, place the file under `inputs/redfin/` in the R2 bucket and the workflow syncs only that prefix into `data/inputs/redfin/`.
 
-**Status:** the first real run is PENDING. Nothing has been executed against R2, Vercel or FRED yet; only local lint (actionlint, shellcheck) has passed.
+**Status:** live since the first run on 2026-11-19 (R2, Vercel and FRED all verified, deep links included). The site is served at https://houselens-us.vercel.app; that address and the `houselens-five.vercel.app` redirect are set under the Vercel project's Settings → Domains.
