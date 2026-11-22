@@ -74,6 +74,16 @@ def test_rerun_unchanged(tmp_path: Path) -> None:
     assert {s: (st, n) for s, st, n in last} == {s: ("unchanged", 0) for s in SOURCES}
 
 
+def test_config_change_defeats_unchanged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _run(tmp_path) == 0
+    edited = {**cli._config_bytes(), "known_events.yaml": b"[]\n"}
+    monkeypatch.setattr(cli, "_config_bytes", lambda: edited)
+    assert _run(tmp_path) == 0
+    assert {s: st for s, (st, _, _) in _runs(tmp_path / "t.duckdb").items()} == {
+        s: "ok" for s in SOURCES
+    }
+
+
 def test_one_failing_source_isolated(tmp_path: Path) -> None:
     broken = tmp_path / "in"
     shutil.copytree(FIXTURES, broken)

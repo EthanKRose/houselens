@@ -7,6 +7,7 @@ import traceback
 import uuid
 from collections.abc import Callable
 from datetime import date
+from importlib import resources
 from pathlib import Path
 
 import duckdb
@@ -36,16 +37,26 @@ _ADAPTERS: dict[str, Callable[[], Adapter]] = {
 }
 
 
+def _config_bytes() -> dict[str, bytes]:
+    """Config that shapes parsed output; fingerprinted so editing it defeats ``unchanged``."""
+    return {
+        "catalog.yaml": resources.files("houselens_pipeline").joinpath("catalog.yaml").read_bytes(),
+        "known_events.yaml": resources.files("houselens_pipeline.quality")
+        .joinpath("known_events.yaml")
+        .read_bytes(),
+    }
+
+
 class SourceError(Exception):
     """A source failed for a known reason; the message is recorded as-is."""
 
 
-def _adapter(source_id: str, served: bool) -> Adapter:
+def _adapter(source_id: str, served: bool, catalog: Catalog) -> Adapter:
     if source_id == "fred":
         key = os.environ.get("FRED_API_KEY", "")
         if not key and not served:
             raise SourceError("FRED_API_KEY not set")
-        return FredAdapter(key)
+        return FredAdapter(key, catalog=catalog)
     if source_id not in _ADAPTERS:
         raise SourceError("no adapter")
     return _ADAPTERS[source_id]()
@@ -67,9 +78,10 @@ def _ingest_source(
         raise SourceError("manual input missing")
     if served:
         note.append("(input-dir)")
-    adapter = _adapter(source_id, served)
+    adapter = _adapter(source_id, served, catalog)
     parts = read_parts(drop) if drop is not None and served else adapter.fetch()
-    digest = checksum(parts)
+    # code changes still need a manual run; only config is fingerprinted
+    digest = checksum({**parts, **{f"_config/{k}": v for k, v in _config_bytes().items()}})
     out = adapter.parse(parts, catalog)
 
     res = resolve_regions(source_id, out.regions)

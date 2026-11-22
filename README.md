@@ -13,7 +13,7 @@ GitHub Actions (daily cron)
   1. restore houselens.duckdb (persisted state, all vintages)
   2. adapters/  fetch each source → temp raw file (checksum recorded in ingest_run)
   3. normalize/ → canonical rows (Pandera-validated)
-  4. append new vintages to DuckDB (skip if checksum unchanged)
+  4. append new vintages to DuckDB (skip if the raw files, catalog.yaml and known_events.yaml are all unchanged)
   5. export/    DuckDB → web/public/data/*.json
   6. next build (static export) → deploy to Vercel
   7. persist houselens.duckdb
@@ -39,7 +39,7 @@ All run through `uv` from `pipeline/`. Web checks run from `web/`: `npm run lint
 
 ## Operating
 
-The nightly workflow (`.github/workflows/ingest.yml`, 12:00 UTC plus manual `workflow_dispatch`) restores the DuckDB file from a private R2 bucket, ingests, exports, builds, deploys to Vercel and writes the DB back (previous copy kept as `houselens.prev.duckdb`). A failed source still deploys last-good data and persists new vintages, but marks the run failed. If the R2 download fails, or the object is missing without `first_run`, the run stops before ingest.
+The nightly workflow (`.github/workflows/ingest.yml`, 12:00 UTC plus manual `workflow_dispatch`) restores the DuckDB file from a private R2 bucket, ingests, exports, builds, deploys to Vercel and writes the DB back (previous copy kept as `houselens.prev.duckdb`). A failed source still deploys last-good data and persists new vintages, but marks the run failed. If the R2 download fails, or the object is missing without `first_run`, the run stops before ingest. Editing `catalog.yaml` or `known_events.yaml` takes effect on the next run; a parser code change alone is not fingerprinted, so it applies when the vendor next publishes a new file (or when either YAML changes).
 
 **Required repository secrets:** `FRED_API_KEY`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
 
