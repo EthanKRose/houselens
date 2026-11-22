@@ -54,15 +54,20 @@ class FredAdapter:
 
     source_id = "fred"
 
-    def __init__(self, api_key: str, client: httpx.Client | None = None) -> None:
+    def __init__(
+        self, api_key: str, client: httpx.Client | None = None, catalog: Catalog | None = None
+    ) -> None:
         """Create the adapter.
 
         Args:
             api_key: FRED API key; never logged or put in error messages.
             client: Optional HTTP client (tests pass a mock transport).
+            catalog: Catalog whose FRED ids ``fetch`` requests; defaults to ``load_catalog()``.
         """
         self._key = api_key
-        self._client = client or httpx.Client(timeout=30)
+        self._catalog = catalog or load_catalog()
+        # retries cover connection failures only, never HTTP error responses
+        self._client = client or httpx.Client(timeout=30, transport=httpx.HTTPTransport(retries=3))
 
     def fetch(self) -> dict[str, bytes]:
         """Request every catalog FRED id.
@@ -74,7 +79,7 @@ class FredAdapter:
             RuntimeError: On any request failure (key redacted); fails the whole fetch.
         """
         parts: dict[str, bytes] = {}
-        for fid in _fred_ids(load_catalog()):
+        for fid in _fred_ids(self._catalog):
             try:
                 r = self._client.get(
                     _URL, params={"series_id": fid, "api_key": self._key, "file_type": "json"}

@@ -50,7 +50,9 @@ class RealtorAdapter:
         Args:
             client: Optional HTTP client (tests pass a mock transport).
         """
-        self._client = client or httpx.Client(timeout=120, follow_redirects=True)
+        self._client = client or httpx.Client(
+            timeout=120, follow_redirects=True, transport=httpx.HTTPTransport(retries=3)
+        )
 
     def fetch(self) -> dict[str, bytes]:
         """Download the country, state and metro history files.
