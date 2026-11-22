@@ -22,6 +22,8 @@ _REGION: dict[str, tuple[str | None, str, str, str | None]] = {
     "metro.csv": ("cbsa_code", "cbsa_title", "CBSA", "cbsa_code"),
 }
 _FLAG = "realtor_quality_flag"
+# Columns stored as a 0-1 fraction whose catalog unit is pct; round(6) drops float noise.
+_TO_PERCENT = frozenset({"price_reduced_share"})
 _OBS_SCHEMA: dict[str, pl.DataType | type[pl.DataType]] = {
     "series_id": pl.String,
     "vendor_region_id": pl.String,
@@ -98,7 +100,9 @@ class RealtorAdapter:
                         series_id=pl.lit(s.series_id),
                         vendor_region_id="vendor_region_id",
                         month="month_date_yyyymm",
-                        value=pl.col(col).cast(pl.Float64),
+                        value=(pl.col(col).cast(pl.Float64) * 100).round(6)
+                        if col in _TO_PERCENT
+                        else pl.col(col).cast(pl.Float64),
                         flagged=flagged.fill_null(False),
                     ).drop_nulls("value")
                 )

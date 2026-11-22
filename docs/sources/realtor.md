@@ -11,7 +11,7 @@
 
 Region: country file `country` (-> US); state file `state_id`/`state`; metro file `cbsa_code`/`cbsa_title`.
 Period: `month_date_yyyymm` -> calendar month. Values: `median_listing_price`, `active_listing_count`,
-`median_days_on_market`, `price_reduced_share`. The `_mm`/`_yy` columns are ignored (HouseLens computes transforms).
+`median_days_on_market`, `price_reduced_share`. The `_mm`/`_yy` columns are ignored (HouseLens computes transforms). `price_reduced_share` is a 0-1 fraction in the file; the adapter multiplies it by 100 so it matches the catalog's `pct` unit.
 `quality_flag == 1` -> row flag `realtor_quality_flag`. Blank values are skipped. `release_date` is null (first seen).
 
 ## Attribution

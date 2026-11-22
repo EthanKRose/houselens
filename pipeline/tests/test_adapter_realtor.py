@@ -79,3 +79,10 @@ def test_fetch_urls() -> None:
         f"https://econdata.s3-us-west-2.amazonaws.com/Reports/Core/RDC_Inventory_Core_Metrics_{n}_History.csv"
         for n in ("Country", "Metro", "State")
     ]
+
+
+def test_price_reduced_share_is_a_percent() -> None:
+    # The file stores a 0-1 fraction (Austin 2026-10: 4,444 of 11,631 listings, 0.2625).
+    obs = _out().obs.filter(series_id="realtor.price_reduced_share.all.nsa")
+    austin = obs.filter(vendor_region_id="12420", period_start=date(2026, 10, 1))
+    assert austin["value"].to_list() == [26.25]

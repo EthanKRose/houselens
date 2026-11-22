@@ -365,7 +365,8 @@ series:
     vendor_key: price_reduced_share
     fixed_geo_id: null
     methodology_md: >-
-      Realtor.com's share of listings with price reductions (column price_reduced_share). Asking prices and active listings, not closed sales. Not seasonally adjusted.
+      Realtor.com's share of listings with price reductions (column price_reduced_share, which the
+      file stores as a 0-1 fraction; HouseLens shows it as a percent). Asking prices and active listings, not closed sales. Not seasonally adjusted.
   - series_id: redfin.median_sale_price.all.sa
     name: "Redfin median sale price"
     summary: "The middle sale price of homes sold, from Redfin's MLS data. Not shown on the site until Redfin gives permission."
