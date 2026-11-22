@@ -35,8 +35,9 @@ CREATE TABLE IF NOT EXISTS observation (
   series_id TEXT, geo_id TEXT, period_start DATE NOT NULL, period_end DATE NOT NULL,
   value DOUBLE, vintage_date DATE NOT NULL, release_date DATE,
   is_derived BOOLEAN DEFAULT FALSE,
-  quality_flags TEXT[],
-  PRIMARY KEY (series_id, geo_id, period_start, vintage_date)
+  quality_flags TEXT[]
+  -- No PRIMARY KEY: its index was ~5x the data at ZIP scale. ingest.write_vintage enforces
+  -- (series_id, geo_id, period_start, vintage_date) uniqueness instead.
 );
 CREATE TABLE IF NOT EXISTS ingest_run (
   run_id TEXT PRIMARY KEY, source_id TEXT, started_at TIMESTAMP, finished_at TIMESTAMP,

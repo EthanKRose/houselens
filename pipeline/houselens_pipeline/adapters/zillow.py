@@ -7,16 +7,23 @@ import polars as pl
 
 from houselens_pipeline.adapters.base import AdapterOutput
 from houselens_pipeline.catalog import Catalog
-from houselens_pipeline.normalize import periods
 
 _BASE = "https://files.zillowstatic.com/research/public_csvs/"
 _PATHS = {
     "zhvi_metro": "zhvi/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv",
     "zhvi_state": "zhvi/State_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv",
     "zori_metro": "zori/Metro_zori_uc_sfrcondomfr_sm_sa_month.csv",
+    "zhvi_zip": "zhvi/Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv",
+    **{
+        f"zhvi_zip_b{b}": f"zhvi/Zip_zhvi_bdrmcnt_{b}_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+        for b in range(1, 6)
+    },
+    "zori_zip": "zori/Zip_zori_uc_sfrcondomfr_sm_sa_month.csv",
 }
-_LEVELS = {"country": "US", "state": "ST", "msa": "CBSA"}
-_ID_COLS = ["RegionID", "SizeRank", "RegionName", "RegionType", "StateName"]
+_LEVELS = {"country": "US", "state": "ST", "msa": "CBSA", "zip": "ZIP"}
+# ZIP files keep only months from here on: enough for the latest, 1-year and 5-year comparisons
+# the property analyzer makes, and ~4x fewer rows than full history.
+_ZIP_FROM = "2019-01"
 _OBS_SCHEMA: dict[str, pl.DataType | type[pl.DataType]] = {
     "series_id": pl.String,
     "vendor_region_id": pl.String,
@@ -49,7 +56,7 @@ class ZillowAdapter:
         )
 
     def fetch(self) -> dict[str, bytes]:
-        """Download the three public CSV files.
+        """Download the public metro, state and ZIP CSV files.
 
         Returns:
             Parts named ``{part}.csv``.
@@ -83,39 +90,33 @@ class ZillowAdapter:
             if part not in by_part:
                 continue
             df = pl.read_csv(io.BytesIO(raw), infer_schema=False)
+            months = [c for c in df.columns if c[:4].isdigit()]
+            if "_zip" in part:
+                months = [c for c in months if c >= _ZIP_FROM]
+            level = pl.col("RegionType").replace_strict(_LEVELS)
             regions.append(
                 df.select(
                     vendor_region_id=pl.col("RegionID"),
                     vendor_name=pl.col("RegionName"),
-                    level=pl.col("RegionType").replace_strict(_LEVELS),
-                    code=pl.lit(None, pl.String),
+                    level=level,
+                    code=pl.when(level == "ZIP").then(pl.col("RegionName").str.zfill(5)),
                 )
             )
-            long = (
-                df.unpivot(index=_ID_COLS, variable_name="month", value_name="v")
+            end = pl.col("month").str.to_date("%Y-%m-%d")
+            frames.append(
+                df.unpivot(index="RegionID", on=months, variable_name="month", value_name="v")
                 .filter(pl.col("v").is_not_null() & (pl.col("v") != ""))
                 .select(
                     series_id=pl.lit(by_part[part].series_id),
                     vendor_region_id=pl.col("RegionID"),
-                    month=pl.col("month").str.to_date("%Y-%m-%d"),
+                    period_start=end.dt.month_start(),
+                    period_end=end.dt.month_end(),
                     value=pl.col("v").cast(pl.Float64),
+                    release_date=pl.lit(None, pl.Date),
                 )
             )
-            frames.append(long)
-        rows = [
-            {
-                "series_id": r["series_id"],
-                "vendor_region_id": r["vendor_region_id"],
-                "period_start": periods.month(r["month"])[0],
-                "period_end": periods.month(r["month"])[1],
-                "value": r["value"],
-                "release_date": None,
-            }
-            for f in frames
-            for r in f.iter_rows(named=True)
-        ]
         reg = pl.concat(regions).unique("vendor_region_id") if regions else None
         return AdapterOutput(
-            obs=pl.DataFrame(rows, schema=_OBS_SCHEMA),
+            obs=pl.concat(frames) if frames else pl.DataFrame(schema=_OBS_SCHEMA),
             regions=reg if reg is not None else pl.DataFrame(schema=_REGION_SCHEMA),
         )

@@ -88,8 +88,9 @@ def _ingest_source(
     note.insert(0, f"unmatched={res.unmatched.height} skipped_by_rule={res.skipped_by_rule.height}")
     report_dir.mkdir(parents=True, exist_ok=True)
     report = {
-        "unmatched": res.unmatched.to_dicts(),
-        "skipped_by_rule": res.skipped_by_rule.to_dicts(),
+        # sorted so nightly reports diff cleanly (adapters dedupe regions in no fixed order)
+        "unmatched": res.unmatched.sort("vendor_region_id").to_dicts(),
+        "skipped_by_rule": res.skipped_by_rule.sort("vendor_region_id").to_dicts(),
     }
     (report_dir / f"unmatched_{source_id}.json").write_text(json.dumps(report, indent=2) + "\n")
     # Bulk insert: ZIP-level sources map ~30k regions, too many for row-by-row executemany.

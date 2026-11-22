@@ -28,11 +28,15 @@ where l.series_id is null
    or list_sort(n.quality_flags) is distinct from list_sort(l.quality_flags)
 """
 
+# Per (series, geo level): a vanished metro file must not hide behind ZIP rows of the same
+# series. Levels are the geo_id prefix (US, ST, CBSA, ZIP).
 _COVERAGE = """
-with n as (select series_id, count(distinct geo_id) c from _new group by 1),
-     cur as (select series_id, count(distinct geo_id) c from observation_latest group by 1)
-select series_id, n.c, cur.c from n join cur using (series_id)
-where n.c < 0.95 * cur.c order by 1
+with n as (select series_id, split_part(geo_id, ':', 1) lvl, count(distinct geo_id) c
+           from _new group by 1, 2),
+     cur as (select series_id, split_part(geo_id, ':', 1) lvl, count(distinct geo_id) c
+             from observation_latest where series_id in (select series_id from _new) group by 1, 2)
+select series_id || ' ' || lvl, coalesce(n.c, 0), cur.c from cur left join n using (series_id, lvl)
+where coalesce(n.c, 0) < 0.95 * cur.c order by 1
 """
 
 # This source's series that have current data but no rows at all in the new frame.
@@ -86,6 +90,12 @@ def _write(
     con.from_arrow(obs.__arrow_c_stream__()).query(
         "_src", "create or replace temp table _new as select * from _src"
     )
+    # observation has no PK index (see schema.sql), so duplicate keys are refused here.
+    [(dups,)] = con.execute(
+        "select count(*) - count(distinct (series_id, geo_id, period_start)) from _new"
+    ).fetchall()
+    if dups:
+        return "failed", 0, f"{dups} duplicate (series, geo, period) rows in the new frame"
     absent = [r[0] for r in con.execute(_ABSENT, {"source_id": source_id}).fetchall()]
     if absent:
         return "failed", 0, f"series absent from new frame: {', '.join(absent)}"
@@ -144,11 +154,13 @@ def write_vintage(
 
     Rules, in order:
 
-    0. An empty ``obs`` is ``failed`` with 0 rows.
+    0. An empty ``obs``, or one with duplicate ``(series_id, geo_id, period_start)`` keys, is
+       ``failed`` with 0 rows.
     1. If the most recent ``ok``/``unchanged`` run for ``source_id`` (failed runs never count)
        has the same ``file_checksum``, the result is ``unchanged`` with 0 rows.
-    2. For each series present in both ``obs`` and ``observation_latest``, if the new distinct
-       ``geo_id`` count is below 95% of the current one, the result is ``failed`` with 0 rows.
+    2. For each series present in both ``obs`` and ``observation_latest``, and each geo level
+       (``US``/``ST``/``CBSA``/``ZIP``), if the new distinct ``geo_id`` count is below 95% of
+       the current one, the result is ``failed`` with 0 rows.
        Before that, any series of this source (``series.source_id``) with rows in
        ``observation_latest`` but none in ``obs`` is ``failed`` with 0 rows.
     3. A row is inserted with ``vintage_date = run_date`` only if its

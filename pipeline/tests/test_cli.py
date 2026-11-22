@@ -110,7 +110,10 @@ def test_redfin_missing_input_fails_cleanly(
 def test_unmatched_report_written(tmp_path: Path) -> None:
     _run(tmp_path)
     report = json.loads((tmp_path / "reports" / "unmatched_zillow.json").read_text())
-    assert [r["vendor_name"] for r in report["unmatched"]] == ["Lamesa, TX"]
+    # Lamesa: no CBSA match; 93009: a ZIP that is not a Census ZCTA (PO-box style)
+    assert sorted(r["vendor_name"] for r in report["unmatched"]) == ["93009", "Lamesa, TX"]
+    ids = [r["vendor_region_id"] for r in report["unmatched"]]
+    assert ids == sorted(ids)
     fhfa = json.loads((tmp_path / "reports" / "unmatched_fhfa.json").read_text())
     assert len(fhfa["skipped_by_rule"]) == 1
 

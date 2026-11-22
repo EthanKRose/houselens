@@ -44,6 +44,7 @@ def test_only_catalog_columns() -> None:
         "realtor.active_listings.all.nsa",
         "realtor.dom.all.nsa",
         "realtor.price_reduced_share.all.nsa",
+        "realtor.median_list_ppsf.all.nsa",
     }
     # US Oct 2026 median_listing_price_yy is -0.0221; no such value may appear.
     assert -0.0221 not in obs["value"].to_list()
@@ -62,7 +63,7 @@ def test_quality_flag_mapped() -> None:
 def test_blank_skipped() -> None:
     obs = _out().obs.filter(vendor_region_id="25100")
     assert obs["series_id"].to_list().count("realtor.dom.all.nsa") == 0
-    assert obs.height == 3 and obs["value"].null_count() == 0
+    assert obs.height == 4 and obs["value"].null_count() == 0
     assert obs["period_start"].unique().to_list() == [date(2017, 2, 1)]
 
 
@@ -74,10 +75,11 @@ def test_fetch_urls() -> None:
         return httpx.Response(200, content=b"x")
 
     parts = RealtorAdapter(httpx.Client(transport=httpx.MockTransport(handler))).fetch()
-    assert set(parts) == {"country.csv", "state.csv", "metro.csv"}
+    assert set(parts) == {"country.csv", "state.csv", "metro.csv", "zip.csv"}
+    base = "https://econdata.s3-us-west-2.amazonaws.com/Reports/Core/RDC_Inventory_Core_Metrics_"
     assert sorted(urls) == [
-        f"https://econdata.s3-us-west-2.amazonaws.com/Reports/Core/RDC_Inventory_Core_Metrics_{n}_History.csv"
-        for n in ("Country", "Metro", "State")
+        *(f"{base}{n}_History.csv" for n in ("Country", "Metro", "State")),
+        f"{base}Zip.csv",  # latest month only: the ZIP history file is ~840 MB
     ]
 
 
@@ -86,3 +88,19 @@ def test_price_reduced_share_is_a_percent() -> None:
     obs = _out().obs.filter(series_id="realtor.price_reduced_share.all.nsa")
     austin = obs.filter(vendor_region_id="12420", period_start=date(2026, 10, 1))
     assert austin["value"].to_list() == [26.25]
+
+
+def test_zip_rows() -> None:
+    out = _out()
+    reg = {r["vendor_region_id"]: r for r in out.regions.to_dicts()}
+    assert reg["78704"] == {
+        "vendor_region_id": "78704",
+        "vendor_name": "austin, tx",
+        "level": "ZIP",
+        "code": "78704",
+    }
+    z = out.obs.filter(vendor_region_id="78704", period_start=date(2026, 10, 1))
+    by = dict(zip(z["series_id"], z["value"], strict=True))
+    assert by["realtor.median_list_ppsf.all.nsa"] == 512.0
+    assert by[PRICE] == 725000.0
+    assert by["realtor.price_reduced_share.all.nsa"] == 23.32

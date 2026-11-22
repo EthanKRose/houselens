@@ -58,6 +58,7 @@ metrics:
   - {metric_id: mortgage_rate_30y, label: 30-year fixed mortgage rate, unit: pct, higher_is: down}
   - {metric_id: housing_starts, label: Housing starts, unit: count, higher_is: neutral}
   - {metric_id: median_list_price, label: Median list price, unit: usd, higher_is: up}
+  - {metric_id: median_list_ppsf, label: Median list price per square foot, unit: usd, higher_is: up}
   - {metric_id: active_listings, label: Active listings, unit: count, higher_is: neutral}
   - {metric_id: days_on_market, label: Days on market, unit: days, higher_is: neutral}
   - {metric_id: price_reduced_share, label: Share of listings with price cuts, unit: pct, higher_is: neutral}
@@ -280,7 +281,7 @@ series:
     frequency: monthly
     typical_lag_days: 30
     release_date_kind: first_seen
-    vendor_key: zhvi_metro|zhvi_state
+    vendor_key: zhvi_metro|zhvi_state|zhvi_zip
     fixed_geo_id: null
     methodology_md: >-
       Zillow Home Value Index, a smoothed, seasonally adjusted typical value (35th to 65th
@@ -288,6 +289,111 @@ series:
       valuation model error, which is worse in non-disclosure states such as Texas where
       deeds do not record prices. Weaker there. Release date is the date HouseLens first saw
       the file.
+  - series_id: zillow.zhvi.b1.mid.sa
+    name: "Zillow typical home value, 1 bedroom"
+    summary: "Zillow's typical value (35th to 65th percentile) for homes with 1 bedroom, by ZIP code, based on Zillow's automated Zestimate valuations. Use it to compare a home with others of the same size nearby."
+    source_id: zillow
+    metric_id: typical_home_value
+    method_family: hedonic_avm
+    market: sale
+    bedrooms: "1"
+    tier: mid
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: zhvi_zip_b1
+    fixed_geo_id: null
+    methodology_md: >-
+      Zillow Home Value Index for homes with 1 bedroom, a smoothed, seasonally adjusted typical
+      value (35th to 65th percentile) derived from the Zestimate, published by ZIP code. It
+      inherits automated valuation model error, which is worse in non-disclosure states such as
+      Texas where deeds do not record prices. HouseLens keeps ZIP data from January 2019 on.
+      Release date is the date HouseLens first saw the file.
+  - series_id: zillow.zhvi.b2.mid.sa
+    name: "Zillow typical home value, 2 bedrooms"
+    summary: "Zillow's typical value (35th to 65th percentile) for homes with 2 bedrooms, by ZIP code, based on Zillow's automated Zestimate valuations. Use it to compare a home with others of the same size nearby."
+    source_id: zillow
+    metric_id: typical_home_value
+    method_family: hedonic_avm
+    market: sale
+    bedrooms: "2"
+    tier: mid
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: zhvi_zip_b2
+    fixed_geo_id: null
+    methodology_md: >-
+      Zillow Home Value Index for homes with 2 bedrooms, a smoothed, seasonally adjusted typical
+      value (35th to 65th percentile) derived from the Zestimate, published by ZIP code. It
+      inherits automated valuation model error, which is worse in non-disclosure states such as
+      Texas where deeds do not record prices. HouseLens keeps ZIP data from January 2019 on.
+      Release date is the date HouseLens first saw the file.
+  - series_id: zillow.zhvi.b3.mid.sa
+    name: "Zillow typical home value, 3 bedrooms"
+    summary: "Zillow's typical value (35th to 65th percentile) for homes with 3 bedrooms, by ZIP code, based on Zillow's automated Zestimate valuations. Use it to compare a home with others of the same size nearby."
+    source_id: zillow
+    metric_id: typical_home_value
+    method_family: hedonic_avm
+    market: sale
+    bedrooms: "3"
+    tier: mid
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: zhvi_zip_b3
+    fixed_geo_id: null
+    methodology_md: >-
+      Zillow Home Value Index for homes with 3 bedrooms, a smoothed, seasonally adjusted typical
+      value (35th to 65th percentile) derived from the Zestimate, published by ZIP code. It
+      inherits automated valuation model error, which is worse in non-disclosure states such as
+      Texas where deeds do not record prices. HouseLens keeps ZIP data from January 2019 on.
+      Release date is the date HouseLens first saw the file.
+  - series_id: zillow.zhvi.b4.mid.sa
+    name: "Zillow typical home value, 4 bedrooms"
+    summary: "Zillow's typical value (35th to 65th percentile) for homes with 4 bedrooms, by ZIP code, based on Zillow's automated Zestimate valuations. Use it to compare a home with others of the same size nearby."
+    source_id: zillow
+    metric_id: typical_home_value
+    method_family: hedonic_avm
+    market: sale
+    bedrooms: "4"
+    tier: mid
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: zhvi_zip_b4
+    fixed_geo_id: null
+    methodology_md: >-
+      Zillow Home Value Index for homes with 4 bedrooms, a smoothed, seasonally adjusted typical
+      value (35th to 65th percentile) derived from the Zestimate, published by ZIP code. It
+      inherits automated valuation model error, which is worse in non-disclosure states such as
+      Texas where deeds do not record prices. HouseLens keeps ZIP data from January 2019 on.
+      Release date is the date HouseLens first saw the file.
+  - series_id: zillow.zhvi.b5.mid.sa
+    name: "Zillow typical home value, 5+ bedrooms"
+    summary: "Zillow's typical value (35th to 65th percentile) for homes with 5+ bedrooms, by ZIP code, based on Zillow's automated Zestimate valuations. Use it to compare a home with others of the same size nearby."
+    source_id: zillow
+    metric_id: typical_home_value
+    method_family: hedonic_avm
+    market: sale
+    bedrooms: "5+"
+    tier: mid
+    seasonal_adj: true
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: zhvi_zip_b5
+    fixed_geo_id: null
+    methodology_md: >-
+      Zillow Home Value Index for homes with 5+ bedrooms, a smoothed, seasonally adjusted typical
+      value (35th to 65th percentile) derived from the Zestimate, published by ZIP code. It
+      inherits automated valuation model error, which is worse in non-disclosure states such as
+      Texas where deeds do not record prices. HouseLens keeps ZIP data from January 2019 on.
+      Release date is the date HouseLens first saw the file.
   - series_id: zillow.zori.all.sa
     name: "Zillow rent index"
     summary: "Zillow's index of asking rents, comparing the same rentals over time. It shows what landlords ask, not signed leases, and tends to move about a year before the government's rent numbers."
@@ -299,7 +405,7 @@ series:
     frequency: monthly
     typical_lag_days: 30
     release_date_kind: first_seen
-    vendor_key: zori_metro
+    vendor_key: zori_metro|zori_zip
     fixed_geo_id: null
     methodology_md: >-
       Zillow Observed Rent Index, a repeat-rent index of asking rents, so it reflects asking
@@ -321,6 +427,23 @@ series:
     fixed_geo_id: null
     methodology_md: >-
       Realtor.com's median listing price (column median_listing_price). Asking prices and active listings, not closed sales. Not seasonally adjusted.
+  - series_id: realtor.median_list_ppsf.all.nsa
+    name: "Median list price per square foot (Realtor.com listings)"
+    summary: "The middle asking price per square foot of homes listed for sale on Realtor.com. Use it to compare homes of different sizes; these are asking prices, not what homes sold for."
+    source_id: realtor
+    metric_id: median_list_ppsf
+    method_family: listing
+    market: sale
+    seasonal_adj: false
+    frequency: monthly
+    typical_lag_days: 30
+    release_date_kind: first_seen
+    vendor_key: median_listing_price_per_square_foot
+    fixed_geo_id: null
+    methodology_md: >-
+      Realtor.com's median listing price per square foot (column
+      median_listing_price_per_square_foot). Asking prices and active listings, not closed
+      sales. Not seasonally adjusted.
   - series_id: realtor.active_listings.all.nsa
     name: "Active listings (Realtor.com listings)"
     summary: "How many homes were listed for sale on Realtor.com."

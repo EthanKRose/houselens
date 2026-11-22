@@ -10,16 +10,21 @@ from houselens_pipeline.adapters.base import AdapterOutput
 from houselens_pipeline.catalog import Catalog
 from houselens_pipeline.normalize import periods
 
-_URL = (
-    "https://econdata.s3-us-west-2.amazonaws.com/Reports/Core/"
-    "RDC_Inventory_Core_Metrics_{}_History.csv"
-)
-_PARTS = {"country.csv": "Country", "state.csv": "State", "metro.csv": "Metro"}
+_BASE = "https://econdata.s3-us-west-2.amazonaws.com/Reports/Core/RDC_Inventory_Core_Metrics_"
+# ZIP uses the latest-month file: its full history is ~840 MB, so ZIP history builds up one
+# monthly vintage at a time instead.
+_PARTS = {
+    "country.csv": "Country_History.csv",
+    "state.csv": "State_History.csv",
+    "metro.csv": "Metro_History.csv",
+    "zip.csv": "Zip.csv",
+}
 # part -> (vendor id column, vendor name column, level, code column)
 _REGION: dict[str, tuple[str | None, str, str, str | None]] = {
     "country.csv": (None, "country", "US", None),
     "state.csv": ("state_id", "state", "ST", None),
     "metro.csv": ("cbsa_code", "cbsa_title", "CBSA", "cbsa_code"),
+    "zip.csv": ("postal_code", "zip_name", "ZIP", "postal_code"),
 }
 _FLAG = "realtor_quality_flag"
 # Columns stored as a 0-1 fraction whose catalog unit is pct; round(6) drops float noise.
@@ -57,14 +62,14 @@ class RealtorAdapter:
         )
 
     def fetch(self) -> dict[str, bytes]:
-        """Download the country, state and metro history files.
+        """Download the country, state and metro history files and the latest ZIP file.
 
         Returns:
-            Parts named ``country.csv``, ``state.csv`` and ``metro.csv``.
+            Parts named ``country.csv``, ``state.csv``, ``metro.csv`` and ``zip.csv``.
         """
         parts: dict[str, bytes] = {}
-        for name, label in _PARTS.items():
-            r = self._client.get(_URL.format(label))
+        for name, file in _PARTS.items():
+            r = self._client.get(_BASE + file)
             r.raise_for_status()
             parts[name] = r.content
         return parts

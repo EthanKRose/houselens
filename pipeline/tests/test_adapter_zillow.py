@@ -43,7 +43,11 @@ def test_blank_cells_skipped() -> None:
 
 def test_series_ids_from_part() -> None:
     obs = _out().obs
-    assert set(obs["series_id"].unique()) == {"zillow.zhvi.all.mid.sa", "zillow.zori.all.sa"}
+    assert set(obs["series_id"].unique()) == {
+        "zillow.zhvi.all.mid.sa",
+        "zillow.zori.all.sa",
+        *(f"zillow.zhvi.b{b}.mid.sa" for b in range(1, 6)),
+    }
     zori = obs.filter(series_id="zillow.zori.all.sa")
     assert "54" not in zori["vendor_region_id"].to_list()
     assert "quality_flags" not in obs.columns
@@ -57,6 +61,38 @@ def test_fetch_urls() -> None:
         return httpx.Response(200, content=b"x")
 
     parts = ZillowAdapter(httpx.Client(transport=httpx.MockTransport(handler))).fetch()
-    assert set(parts) == {"zhvi_metro.csv", "zhvi_state.csv", "zori_metro.csv"}
+    assert set(parts) == {
+        "zhvi_metro.csv",
+        "zhvi_state.csv",
+        "zori_metro.csv",
+        "zhvi_zip.csv",
+        "zori_zip.csv",
+        *(f"zhvi_zip_b{b}.csv" for b in range(1, 6)),
+    }
+    assert any(
+        u.endswith("zhvi/Zip_zhvi_bdrmcnt_3_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv")
+        for u in urls
+    )
     assert all(u.startswith("https://files.zillowstatic.com/research/public_csvs/") for u in urls)
     assert any(u.endswith("zori/Metro_zori_uc_sfrcondomfr_sm_sa_month.csv") for u in urls)
+
+
+def test_zip_parts_start_in_2019_and_carry_the_zip_code() -> None:
+    out = _out()
+    reg = {r["vendor_region_id"]: r for r in out.regions.to_dicts()}
+    assert reg["92617"] == {
+        "vendor_region_id": "92617",
+        "vendor_name": "78704",
+        "level": "ZIP",
+        "code": "78704",
+    }
+    zhvi = out.obs.filter(series_id="zillow.zhvi.all.mid.sa", vendor_region_id="92617")
+    assert zhvi["period_start"].min() == date(2019, 1, 1)  # fixture starts 2018-01
+    assert zhvi.filter(period_start=date(2026, 9, 1))["period_end"].to_list() == [date(2026, 9, 30)]
+
+
+def test_bedroom_series_only_from_their_file() -> None:
+    obs = _out().obs
+    b5 = obs.filter(series_id="zillow.zhvi.b5.mid.sa")
+    assert set(b5["vendor_region_id"]) == {"61148", "92617"}  # 08701, 78704
+    assert b5.filter(vendor_region_id="92614").height == 0  # 78701 has no 5-bed file row

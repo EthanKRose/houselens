@@ -146,37 +146,41 @@ def test_same_run_date_revision_skips_without_overwrite(
     assert con.execute("select distinct value from observation").fetchall() == [(1.0,)]
 
 
-def test_bad_frame_rolls_back_and_records_failure(con: duckdb.DuckDBPyConnection) -> None:
-    dup = pl.concat([_obs(), _obs(n_geos=1)])  # duplicate PK inside one frame
-    r = write_vintage(con, "src", dup, "a", D1)
+def test_bad_frame_rolls_back_and_records_failure(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # any SQL error mid-write must roll back and be recorded, never raised
+    monkeypatch.setattr(
+        ingest,
+        "_CANDIDATES",
+        "create or replace temp table _cand as select error('boom') where $run_date is not null",
+    )
+    r = write_vintage(con, "src", _obs(), "a", D1)
     assert (r.status, r.rows_written) == ("failed", 0)
-    assert "Constraint" in r.message
+    assert "boom" in r.message
     assert _count(con) == 0
     assert _runs(con) == [("failed", "a", 0)]
 
 
-def test_commit_failure_records_original_error(
-    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    real = ingest._record_run
-    raced: list[bool] = []
+class _CommitFails:
+    """Connection proxy whose commit fails, as a conflicting writer would make it."""
 
-    def racing_record(c: duckdb.DuckDBPyConnection, *args: object) -> None:
-        if not raced:  # another writer commits the same PK mid-transaction
-            raced.append(True)
-            con.cursor().execute(
-                "insert into observation (series_id, geo_id, period_start, period_end, value,"
-                " vintage_date) values ('s', 'CBSA:00000', '2025-12-01', '2025-12-31', 5.0, ?)",
-                [D1],
-            )
-        real(c, *args)  # type: ignore[arg-type]
+    def __init__(self, con: duckdb.DuckDBPyConnection) -> None:
+        self._con = con
 
-    monkeypatch.setattr(ingest, "_record_run", racing_record)
-    r = write_vintage(con, "src", _obs(), "a", D1)
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._con, name)
+
+    def commit(self) -> None:
+        raise duckdb.TransactionException("commit failed: write-write conflict")
+
+
+def test_commit_failure_records_original_error(con: duckdb.DuckDBPyConnection) -> None:
+    r = write_vintage(_CommitFails(con), "src", _obs(), "a", D1)  # type: ignore[arg-type]
     assert (r.status, r.rows_written) == ("failed", 0)
-    assert "constraint violation" in r.message
+    assert "write-write conflict" in r.message
     assert _runs(con) == [("failed", "a", 0)]
-    assert _count(con) == 1  # only the other writer's row
+    assert _count(con) == 0  # rolled back
 
 
 def test_empty_frame_fails(con: duckdb.DuckDBPyConnection) -> None:
@@ -212,3 +216,21 @@ def test_series_absent_from_frame_fails(con: duckdb.DuckDBPyConnection) -> None:
     assert (r.status, r.rows_written) == ("failed", 0)
     assert "s2" in r.message and "absent" in r.message
     assert _count(con) == 9
+
+
+def test_duplicate_keys_in_frame_fail_and_write_nothing(con: duckdb.DuckDBPyConnection) -> None:
+    # observation has no PK index, so write_vintage itself must refuse duplicate keys.
+    dup = pl.concat([_obs(n_geos=2), _obs(n_geos=1, value=9.0)])
+    res = write_vintage(con, "src", dup, "c1", D1)
+    assert res.status == "failed" and "duplicate" in res.message
+    assert con.execute("select count(*) from observation").fetchone() == (0,)
+
+
+def test_coverage_is_checked_per_geo_level(con: duckdb.DuckDBPyConnection) -> None:
+    # A vanished metro file must not hide behind thousands of ZIP rows for the same series.
+    zips = _obs(n_geos=50).with_columns(
+        geo_id=pl.format("ZIP:{}", pl.int_range(50).cast(pl.String).str.zfill(5))
+    )
+    assert write_vintage(con, "src", pl.concat([_obs(n_geos=3), zips]), "a", D1).status == "ok"
+    r = write_vintage(con, "src", zips.with_columns(value=pl.lit(2.0)), "b", D2)
+    assert r.status == "failed" and "CBSA" in r.message, r.message
