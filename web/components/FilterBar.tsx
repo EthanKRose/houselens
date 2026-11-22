@@ -24,8 +24,13 @@ function lastTenYears(): { start: string; end: string } {
   return { start: iso(d), end };
 }
 
-/** Why a series can't be shown for a geography, or null if it can. */
-function unavailableReason(s: SeriesMeta, g: Geography): string | null {
+/**
+ * Why a series can't be shown for a geography.
+ * @param s - the series
+ * @param g - the geography
+ * @returns the reason, or null if it can be shown
+ */
+export function unavailableReason(s: SeriesMeta, g: Geography): string | null {
   if (g.series_ids.includes(s.series_id) || s.national_only) return null;
   if (s.series_id === "fhfa.hpi.at.q.nsa" && g.level === "CBSA" && g.has_msad) {
     return "FHFA publishes divisions, not the whole metro";

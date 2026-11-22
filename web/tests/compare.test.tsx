@@ -80,6 +80,16 @@ describe("compare", () => {
     expect(await box("zillow.zhvi.all.mid.sa")).toBeChecked();
   });
 
+  it("says which picked series this geography lacks", async () => {
+    show("geo=ST:48&s=zillow.zori.all.sa");
+    expect(
+      await screen.findByText(
+        "Not shown for Texas: zillow.zori.all.sa (Not published for this geography).",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Select up to 6/)).not.toBeInTheDocument();
+  });
+
   it("disables FHFA metro on a CBSA with divisions", async () => {
     show("geo=CBSA:35620");
     expect(await box("fhfa.hpi.at.q.nsa")).toHaveAccessibleName(

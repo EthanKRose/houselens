@@ -3,7 +3,7 @@
 import { Suspense, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AboutThisNumber } from "@/components/AboutThisNumber";
-import { FilterBar } from "@/components/FilterBar";
+import { FilterBar, unavailableReason } from "@/components/FilterBar";
 import { FreshnessDot } from "@/components/FreshnessDot";
 import { SeriesChart } from "@/components/SeriesChart";
 import { SourceBadge } from "@/components/SourceBadge";
@@ -113,9 +113,19 @@ function View({
     setTimeout(() => URL.revokeObjectURL(url));
   };
 
-  if (!plotted.length) return <p>Select up to 6 series to compare.</p>;
+  // Picks survive a geography change, so say which ones this geography can't show.
+  const missing = state.series.flatMap((id) => {
+    const meta = catalog.series.find((s) => s.series_id === id);
+    if (!meta || plotted.some((p) => p.meta.series_id === id)) return [];
+    return [`${id} (${unavailableReason(meta, geo) ?? "no data"})`];
+  });
+  const note = missing.length > 0 && (
+    <p className="text-sm text-amber-700">{`Not shown for ${geo.name}: ${missing.join(", ")}.`}</p>
+  );
+  if (!plotted.length) return note || <p>Select up to 6 series to compare.</p>;
   return (
     <div className="space-y-4">
+      {note}
       {mixed && (
         <p className="text-sm text-amber-700">
           Rebased to 100 because the selection mixes 3+ units.
