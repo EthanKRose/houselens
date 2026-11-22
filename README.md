@@ -55,4 +55,4 @@ The nightly workflow (`.github/workflows/ingest.yml`, 12:00 UTC plus manual `wor
 
 **Redfin (manual drop):** HouseLens never fetches redfin.com. The Redfin source is disabled until written permission exists; afterwards, place the file under `inputs/redfin/` in the R2 bucket and the workflow syncs only that prefix into `data/inputs/redfin/`.
 
-**Status:** live since the first run on 2026-11-19 (R2, Vercel and FRED all verified, deep links included). The site is served at https://houselens-us.vercel.app; that address and the `houselens-five.vercel.app` redirect are set under the Vercel project's Settings → Domains.
+**Status:** live since the first run on 2026-11-19 (R2, Vercel and FRED all verified, deep links included). The site is served at https://houselens-us.vercel.app; that address and the `houselens-five.vercel.app` redirect are set under the Vercel project's Settings → Domains. Only the ingest workflow deploys: the root `vercel.json` turns off Vercel's Git auto-deploys, which would publish the repo root (no site there) on every push and take the site down with a 404.
