@@ -37,12 +37,15 @@ class Metric:
 class Series:
     """One published series.
 
-    ``release_date_kind``, ``vendor_key`` and ``fixed_geo_id`` are catalog-only. ``vendor_key``
-    may be a ``|``-joined list that consumers split (zillow zhvi parts, or fred metro
+    ``name`` (plain-English display name), ``summary`` (one or two plain sentences for
+    readers), ``release_date_kind``, ``vendor_key`` and ``fixed_geo_id`` are catalog-only.
+    ``vendor_key`` may be a ``|``-joined list that consumers split (zillow zhvi parts, or fred metro
     ``FREDID=CBSA`` pairs).
     """
 
     series_id: str
+    name: str
+    summary: str
     source_id: str
     metric_id: str
     method_family: str

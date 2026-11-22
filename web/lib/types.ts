@@ -22,6 +22,10 @@ export type Metric = {
 /** Metadata describing one series. */
 export type SeriesMeta = {
   series_id: string;
+  /** Plain-English display name. */
+  name: string;
+  /** One or two plain sentences on what the series is. */
+  summary: string;
   source_id: string;
   metric_id: string;
   method_family: string;

@@ -52,3 +52,9 @@ def test_fred_metro_vendor_key_pairs() -> None:
 def test_fred_dates_are_first_seen() -> None:
     # no realtime params are sent, so realtime_start is the request date, not a publication date
     assert {s.release_date_kind for s in CAT.series if s.source_id == "fred"} == {"first_seen"}
+
+
+def test_series_have_unique_names_and_summaries() -> None:
+    names = [s.name for s in CAT.series]
+    assert len(names) == len(set(names))
+    assert all(s.name.strip() and s.summary.strip() for s in CAT.series)

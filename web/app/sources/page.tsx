@@ -36,16 +36,16 @@ export default function SourcesPage() {
             .map((s) => (
               <article key={s.series_id} className="space-y-2 rounded border p-3">
                 <h3 className="font-medium">
-                  {catalog.metrics.find((m) => m.metric_id === s.metric_id)?.label ?? s.metric_id}{" "}
-                  <span className="text-sm font-normal">({s.series_id})</span>
+                  {s.name} <span className="text-sm font-normal">({s.series_id})</span>
                 </h3>
+                <p className="text-sm">{s.summary}</p>
                 <dl className="grid grid-cols-2 gap-x-4 text-sm sm:grid-cols-5">
                   <dt>Frequency</dt>
                   <dd>{s.frequency}</dd>
                   <dt>Typical lag</dt>
                   <dd>{s.typical_lag_days === null ? "n/a" : `${s.typical_lag_days} days`}</dd>
                   <dt>Seasonality</dt>
-                  <dd>{s.seasonal_adj ? "SA" : "NSA"}</dd>
+                  <dd>{s.seasonal_adj ? "Seasonally adjusted" : "Not seasonally adjusted"}</dd>
                   <dt>Method family</dt>
                   <dd>{s.method_family}</dd>
                   <dt>Release date</dt>

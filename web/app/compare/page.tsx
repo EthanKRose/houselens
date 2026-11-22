@@ -6,6 +6,7 @@ import { AboutThisNumber } from "@/components/AboutThisNumber";
 import { FilterBar, unavailableReason } from "@/components/FilterBar";
 import { FreshnessDot } from "@/components/FreshnessDot";
 import { SeriesChart } from "@/components/SeriesChart";
+import { SeriesInfo } from "@/components/SeriesInfo";
 import { SourceBadge } from "@/components/SourceBadge";
 import { Button } from "@/components/ui/button";
 import { toCsv, type CsvRow } from "@/lib/csv";
@@ -70,7 +71,7 @@ function View({
         .at(-1);
     const plotted = picked.map((p, i) => ({
       ...p,
-      label: `${p.metric.label} · ${p.meta.series_id}${p.national ? " (US)" : ""}`,
+      label: `${p.meta.name}${p.national ? " (US)" : ""}`,
       unit: unitOf(transform, p.metric.unit),
       releaseDate: p.data.release_date,
       vintageDate: p.data.vintage_date,
@@ -117,7 +118,7 @@ function View({
   const missing = state.series.flatMap((id) => {
     const meta = catalog.series.find((s) => s.series_id === id);
     if (!meta || plotted.some((p) => p.meta.series_id === id)) return [];
-    return [`${id} (${unavailableReason(meta, geo) ?? "no data"})`];
+    return [`${meta.name} (${unavailableReason(meta, geo) ?? "no data"})`];
   });
   const note = missing.length > 0 && (
     <p className="text-sm text-amber-700">{`Not shown for ${geo.name}: ${missing.join(", ")}.`}</p>
@@ -151,7 +152,13 @@ function View({
             return (
               <tr key={p.meta.series_id} className="border-t align-top">
                 <th scope="row" className="py-2 pr-4 font-medium">
-                  {p.label}
+                  <span className="inline-flex items-start gap-1">
+                    {p.label}
+                    <SeriesInfo series={p.meta} />
+                  </span>
+                  <span className="text-muted-foreground block text-xs font-normal">
+                    {p.meta.series_id}
+                  </span>
                 </th>
                 <td className="py-2 pr-4">
                   {last ? formatValue(last.value, p.unit) : "No data in range"}

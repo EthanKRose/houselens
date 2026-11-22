@@ -46,9 +46,12 @@ export function AboutThisNumber({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="overflow-y-auto p-4">
           <SheetHeader>
-            <SheetTitle>{series.series_id}</SheetTitle>
-            <SheetDescription>{source.name}</SheetDescription>
+            <SheetTitle>{series.name}</SheetTitle>
+            <SheetDescription>
+              {source.name} · {series.series_id}
+            </SheetDescription>
           </SheetHeader>
+          <p>{series.summary}</p>
           {series.methodology_md.split(/\n{2,}/).map((p, i) => (
             <p key={i}>{p}</p>
           ))}

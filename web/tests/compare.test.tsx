@@ -84,7 +84,7 @@ describe("compare", () => {
     show("geo=ST:48&s=zillow.zori.all.sa");
     expect(
       await screen.findByText(
-        "Not shown for Texas: zillow.zori.all.sa (Not published for this geography).",
+        "Not shown for Texas: Zillow rent index (Not published for this geography).",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Select up to 6/)).not.toBeInTheDocument();

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { AboutThisNumber } from "@/components/AboutThisNumber";
 import { FreshnessDot } from "@/components/FreshnessDot";
 import { SourceBadge } from "@/components/SourceBadge";
+import { SeriesInfo } from "@/components/SeriesInfo";
 import { Sparkline } from "@/components/Sparkline";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatValue } from "@/lib/format";
@@ -57,11 +58,12 @@ export function KpiCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
+        <CardTitle className="flex items-start gap-1">
           <h3>
-            {metric.label}
+            {series.name}
             {national && " (US)"}
           </h3>
+          <SeriesInfo series={series} />
         </CardTitle>
         <p className="text-muted-foreground text-xs">{series.series_id}</p>
       </CardHeader>
