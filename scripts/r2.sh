@@ -41,7 +41,9 @@ case "$cmd" in
     ;;
   put)
     if [ "$exists" = 1 ]; then
-      aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors "s3://${R2_BUCKET}/${key}" "s3://${R2_BUCKET}/${prev_key}"
+      # R2 has no GetObjectTagging; the default copy-props would call it and fail.
+      aws s3 cp --endpoint-url "$ENDPOINT" --only-show-errors --copy-props none \
+        "s3://${R2_BUCKET}/${key}" "s3://${R2_BUCKET}/${prev_key}"
     elif [ "${ALLOW_FRESH:-}" != 1 ]; then
       echo "no remote DB and ALLOW_FRESH is not set; refusing to create one" >&2
       exit 1

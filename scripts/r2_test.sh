@@ -32,6 +32,6 @@ check "$(run 0 "" get)" 1 "get missing, no ALLOW_FRESH"
 check "$(run 0 1 get)" 0 "get missing, ALLOW_FRESH"
 check "$(run 0 "" put)" 1 "put missing, no ALLOW_FRESH"
 check "$(run 1 "" put)" 0 "put exists"
-grep -q "s3 cp .*s3://bkt/houselens.duckdb s3://bkt/houselens.prev.duckdb" "$STUB_LOG" || { echo "FAIL: no prev copy" >&2; exit 1; }
+grep -q "s3 cp .*--copy-props none .*s3://bkt/houselens.duckdb s3://bkt/houselens.prev.duckdb" "$STUB_LOG" || { echo "FAIL: no prev copy" >&2; exit 1; }
 grep -q "s3 cp .* f s3://bkt/houselens.duckdb" "$STUB_LOG" || { echo "FAIL: no upload" >&2; exit 1; }
 echo "r2_test OK"
