@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS geo_crosswalk (
 );
 CREATE TABLE IF NOT EXISTS vendor_geo_map (
   source_id TEXT, vendor_region_id TEXT, vendor_name TEXT, geo_id TEXT,
-  match_method TEXT,              -- fips|cbsa_code|name_fuzzy|manual
+  match_method TEXT,              -- fips|cbsa_code|zip_code|name_fuzzy|manual
   PRIMARY KEY (source_id, vendor_region_id)
 );
 CREATE TABLE IF NOT EXISTS observation (

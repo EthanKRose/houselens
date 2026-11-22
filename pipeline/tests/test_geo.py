@@ -11,6 +11,7 @@ from houselens_pipeline.geo import (
     normalize_name,
     resolve_regions,
     sync_geographies,
+    zip_parents,
 )
 
 GEO = load_geographies()
@@ -174,3 +175,40 @@ def test_realtor_codes_resolve() -> None:
 def test_every_override_target_exists() -> None:
     targets = {g for m in load_overrides().values() for g in m.values()}
     assert targets and targets <= set(GEO["geo_id"])
+
+
+def test_zip_geographies() -> None:
+    zips = GEO.filter(pl.col("level") == "ZIP")
+    assert zips.height > 30_000
+    austin = zips.filter(pl.col("geo_id") == "ZIP:78704").row(0, named=True)
+    assert austin == {
+        "geo_id": "ZIP:78704",
+        "level": "ZIP",
+        "name": "78704 · Travis County, TX",
+        "state_fips": "48",
+        "non_disclosure": True,
+    }
+    assert GEO.filter(pl.col("geo_id") == "ZIP:10001")["non_disclosure"].item() is False
+    # only ZIPs in the 50 states + DC (Puerto Rico ZCTAs are not canonical)
+    assert zips.filter(pl.col("geo_id").str.starts_with("ZIP:006")).height == 0
+
+
+def test_zip_parents() -> None:
+    p = zip_parents()
+    assert p["78704"] == ("Travis County", "CBSA:12420")
+    assert p["06103"][1] is None  # CT planning-region gap: no metro parent
+
+
+def test_zip_code_match() -> None:
+    res = resolve_regions(
+        "zillow",
+        regions(
+            ("1", "78704", "ZIP", "78704"), ("2", "x", "ZIP", "8701"), ("3", "y", "ZIP", "00000")
+        ),
+    )
+    assert geo_of(res.mapping, "1") == "ZIP:78704"
+    assert geo_of(res.mapping, "2") == "ZIP:08701"  # leading zero restored
+    assert (
+        res.mapping.filter(pl.col("vendor_region_id") == "1")["match_method"].item() == "zip_code"
+    )
+    assert res.unmatched["vendor_region_id"].to_list() == ["3"]

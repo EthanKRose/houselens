@@ -92,12 +92,12 @@ def _ingest_source(
         "skipped_by_rule": res.skipped_by_rule.to_dicts(),
     }
     (report_dir / f"unmatched_{source_id}.json").write_text(json.dumps(report, indent=2) + "\n")
-    con.executemany(
+    # Bulk insert: ZIP-level sources map ~30k regions, too many for row-by-row executemany.
+    con.from_arrow(res.mapping.__arrow_c_stream__()).query(
+        "_map",
         "insert or replace into vendor_geo_map (source_id, vendor_region_id, vendor_name, geo_id,"
-        " match_method) values (?, ?, ?, ?, ?)",
-        res.mapping.select(
-            "source_id", "vendor_region_id", "vendor_name", "geo_id", "match_method"
-        ).rows(),
+        " match_method) select source_id, vendor_region_id, vendor_name, geo_id, match_method"
+        " from _map",
     )
     total = out.regions.height
     if total and res.unmatched.height / total > max_unmatched:

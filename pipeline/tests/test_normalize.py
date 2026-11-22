@@ -54,6 +54,7 @@ def _obs(**over: object) -> pl.DataFrame:
 def test_validate_ok() -> None:
     assert validate_obs(_obs()).height == 1
     assert validate_obs(_obs(geo_id="CBSA:12420")).height == 1
+    assert validate_obs(_obs(geo_id="ZIP:78701")).height == 1
 
 
 @pytest.mark.parametrize(
@@ -63,7 +64,7 @@ def test_validate_ok() -> None:
         {"value": float("inf")},
         {"value": None},
         {"period_end": date(2025, 8, 1)},
-        {"geo_id": "ZIP:78701"},
+        {"geo_id": "ZIP:7870"},  # ZIPs are 5 digits
     ],
 )
 def test_validate_rejects(bad: dict[str, object]) -> None:

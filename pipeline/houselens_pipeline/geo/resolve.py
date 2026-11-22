@@ -70,9 +70,10 @@ def resolve_regions(
     *,
     overrides: dict[str, dict[str, str]] | None = None,
 ) -> Resolved:
-    """Resolve vendor regions: override, then code, then US/state, then metro name key.
+    """Resolve vendor regions: override, then ZIP or CBSA code, then US/state, then metro name.
 
-    Codes apply only to level ``CBSA``; an unknown code is unmatched (no name fallback). A CBSA
+    Codes apply only to levels ``ZIP`` (zero-padded to 5 digits) and ``CBSA``; an unknown code
+    is unmatched (no name fallback). A CBSA
     name key shared by two or more CBSAs is ambiguous and left unmatched.
 
     Args:
@@ -111,6 +112,12 @@ def resolve_regions(
         cbsa_code = code if level == "CBSA" else None
         if rid in manual:
             hit = (manual[rid], "manual")
+        elif level == "ZIP":
+            zid = f"ZIP:{(code or '').zfill(5)}"
+            if zid not in valid:
+                unmatched.append(r)
+                continue
+            hit = (zid, "zip_code")
         elif cbsa_code in msads:
             skipped.append(r)
             continue

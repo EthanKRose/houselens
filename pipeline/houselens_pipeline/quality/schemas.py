@@ -6,7 +6,9 @@ import polars as pl
 OBS_SCHEMA = pa.DataFrameSchema(
     {
         "series_id": pa.Column(pl.String, nullable=False),
-        "geo_id": pa.Column(pl.String, pa.Check.str_matches(r"^(US|ST:\d{2}|CBSA:\d{5})$")),
+        "geo_id": pa.Column(
+            pl.String, pa.Check.str_matches(r"^(US|ST:\d{2}|CBSA:\d{5}|ZIP:\d{5})$")
+        ),
         "period_start": pa.Column(pl.Date, nullable=False),
         "period_end": pa.Column(pl.Date, nullable=False),
         "value": pa.Column(

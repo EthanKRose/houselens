@@ -1,6 +1,11 @@
 """Geography reference data and vendor-region to canonical ``geo_id`` resolution."""
 
-from houselens_pipeline.geo.reference import load_geographies, msad_codes, sync_geographies
+from houselens_pipeline.geo.reference import (
+    load_geographies,
+    msad_codes,
+    sync_geographies,
+    zip_parents,
+)
 from houselens_pipeline.geo.resolve import Resolved, load_overrides, normalize_name, resolve_regions
 
 __all__ = [
@@ -11,4 +16,5 @@ __all__ = [
     "normalize_name",
     "resolve_regions",
     "sync_geographies",
+    "zip_parents",
 ]
