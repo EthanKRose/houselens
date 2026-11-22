@@ -80,6 +80,15 @@ describe("compare", () => {
     expect(await box("zillow.zhvi.all.mid.sa")).toBeChecked();
   });
 
+  it("offers a skip link that lands on the results", async () => {
+    show(`${AUSTIN}&s=zillow.zhvi.all.mid.sa`);
+    const link = screen.getByRole("link", { name: "Skip to chart" });
+    expect(link).toHaveAttribute("href", "#results");
+    const target = await screen.findByRole("region", { name: "Chart and table" });
+    expect(target).toHaveAttribute("id", "results");
+    expect(target).toHaveAttribute("tabindex", "-1"); // focusable by the link, not by Tab
+  });
+
   it("says which picked series this geography lacks", async () => {
     show("geo=ST:48&s=zillow.zori.all.sa");
     expect(

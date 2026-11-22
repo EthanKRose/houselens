@@ -242,20 +242,23 @@ function Compare() {
         </p>
       ))}
       {/* Only the results wait on per-geo data, so the controls keep focus and stay usable. */}
-      {[freshnessQ, geoQ, usQ].some((q) => q.isError) ? (
-        failed
-      ) : !freshness || !geoQ.data || !usQ.data ? (
-        <p>Loading…</p>
-      ) : (
-        <View
-          state={state}
-          catalog={catalog}
-          freshness={freshness}
-          geo={geo}
-          geoFile={geoQ.data}
-          usFile={usQ.data}
-        />
-      )}
+      {/* tabIndex -1: the skip link can move focus here, but Tab never stops on it. */}
+      <section id="results" tabIndex={-1} aria-label="Chart and table" className="outline-none">
+        {[freshnessQ, geoQ, usQ].some((q) => q.isError) ? (
+          failed
+        ) : !freshness || !geoQ.data || !usQ.data ? (
+          <p>Loading…</p>
+        ) : (
+          <View
+            state={state}
+            catalog={catalog}
+            freshness={freshness}
+            geo={geo}
+            geoFile={geoQ.data}
+            usFile={usQ.data}
+          />
+        )}
+      </section>
     </div>
   );
 }
@@ -267,6 +270,13 @@ function Compare() {
 export default function ComparePage() {
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-8">
+      {/* Hidden until focused; jumps past the 17 series checkboxes. */}
+      <a
+        href="#results"
+        className="sr-only rounded border text-sm focus:not-sr-only focus:inline-block focus:px-3 focus:py-1"
+      >
+        Skip to chart
+      </a>
       <h1 className="text-2xl font-semibold">Compare</h1>
       <Suspense fallback={<p>Loading…</p>}>
         <Compare />
