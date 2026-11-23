@@ -40,6 +40,8 @@ export type SeriesMeta = {
   methodology_md: string;
   release_date_kind: "published" | "first_seen";
   national_only: boolean;
+  /** Geo levels with data, e.g. ["CBSA", "ST", "US", "ZIP"]; ZIP-only series appear only on the property page. */
+  levels: string[];
 };
 
 /** Contents of catalog.json. */
@@ -85,6 +87,33 @@ export type GeoFile = {
     }
   >;
 };
+
+/** One series' figures for one ZIP code in zip/{prefix}.json. */
+export type ZipBenchmark = {
+  start: string;
+  end: string;
+  value: number;
+  /** Same month one year earlier, if known. */
+  y1: number | null;
+  /** Same month five years earlier, if known. */
+  y5: number | null;
+  vintage_date: string;
+  release_date: string | null;
+  flags: string[];
+};
+
+/** One ZIP code's entry in zip/{prefix}.json. */
+export type ZipEntry = {
+  name: string;
+  county: string | null;
+  /** Parent metro geo_id, e.g. "CBSA:12420", or null outside any metro. */
+  cbsa: string | null;
+  non_disclosure: boolean;
+  series: Record<string, ZipBenchmark>;
+};
+
+/** Contents of zip/{first three ZIP digits}.json, keyed by ZIP. */
+export type ZipShard = Record<string, ZipEntry>;
 
 /** One observation of a series. */
 export type Point = {

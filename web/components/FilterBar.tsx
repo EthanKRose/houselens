@@ -102,33 +102,39 @@ export function FilterBar({
           </p>
         )}
         <ul className="grid gap-1 sm:grid-cols-2">
-          {catalog.series.map((s) => {
-            const reason = unavailableReason(s, geography);
-            const checked = state.series.includes(s.series_id);
-            return (
-              <li key={s.series_id} className="flex items-start gap-1">
-                <label className="flex items-baseline gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    // A selected series stays clickable so it can be removed after a geo change.
-                    disabled={reason !== null && !checked}
-                    onChange={() => toggle(s.series_id)}
-                  />
-                  <span>
-                    {s.name} <span className="text-muted-foreground text-xs">{s.series_id}</span>
-                    {s.national_only && geography.geo_id !== "US" && " (US)"}
-                    {s.source_id === "realtor" && (
-                      <strong className="text-xs"> Listing data (asking prices), not sales</strong>
-                    )}
-                    {reason && <span className="text-muted-foreground text-xs"> — {reason}</span>}
-                  </span>
-                </label>
-                {/* Outside the label: a button inside it would be nested interactive content. */}
-                <SeriesInfo series={s} />
-              </li>
-            );
-          })}
+          {/* ZIP-only series (e.g. by bedroom count) live on the property page. */}
+          {catalog.series
+            .filter((s) => s.levels.some((l) => l !== "ZIP"))
+            .map((s) => {
+              const reason = unavailableReason(s, geography);
+              const checked = state.series.includes(s.series_id);
+              return (
+                <li key={s.series_id} className="flex items-start gap-1">
+                  <label className="flex items-baseline gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      // A selected series stays clickable so it can be removed after a geo change.
+                      disabled={reason !== null && !checked}
+                      onChange={() => toggle(s.series_id)}
+                    />
+                    <span>
+                      {s.name} <span className="text-muted-foreground text-xs">{s.series_id}</span>
+                      {s.national_only && geography.geo_id !== "US" && " (US)"}
+                      {s.source_id === "realtor" && (
+                        <strong className="text-xs">
+                          {" "}
+                          Listing data (asking prices), not sales
+                        </strong>
+                      )}
+                      {reason && <span className="text-muted-foreground text-xs"> — {reason}</span>}
+                    </span>
+                  </label>
+                  {/* Outside the label: a button inside it would be nested interactive content. */}
+                  <SeriesInfo series={s} />
+                </li>
+              );
+            })}
         </ul>
       </fieldset>
       <div className="flex flex-wrap gap-4 text-sm">

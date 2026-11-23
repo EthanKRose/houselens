@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { Catalog, Freshness, GeoFile, Geography, Point } from "./types";
+import type { Catalog, Freshness, GeoFile, Geography, Point, ZipShard } from "./types";
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path);
@@ -54,6 +54,25 @@ export function useFreshness() {
   return useQuery({
     queryKey: ["freshness"],
     queryFn: () => getJson<Freshness>("/data/freshness.json"),
+  });
+}
+
+/**
+ * Loads the ZIP benchmark file for a ZIP's first three digits.
+ * @param zip - a 5-digit ZIP, or "" before one is entered
+ * @returns the query result; a missing file (no data for that area) loads as an empty shard
+ */
+export function useZipShard(zip: string) {
+  const prefix = /^\d{5}$/.test(zip) ? zip.slice(0, 3) : "";
+  return useQuery({
+    queryKey: ["zip", prefix],
+    enabled: prefix !== "",
+    queryFn: async () => {
+      const res = await fetch(`/data/zip/${prefix}.json`);
+      if (res.status === 404) return {} as ZipShard;
+      if (!res.ok) throw new Error(`zip/${prefix}.json: HTTP ${res.status}`);
+      return (await res.json()) as ZipShard;
+    },
   });
 }
 
