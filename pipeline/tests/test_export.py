@@ -110,3 +110,47 @@ def test_has_msad_true_for_new_york(out: Path) -> None:
     geos = _load(out / "geographies.json")
     assert isinstance(geos, list)
     assert next(g for g in geos if g["geo_id"] == "CBSA:35620")["has_msad"] is True
+
+
+def test_zips_stay_out_of_metro_files(out: Path) -> None:
+    geos = _load(out / "geographies.json")
+    assert isinstance(geos, list)
+    assert not [g for g in geos if g["level"] == "ZIP"]
+    assert not list((out / "geo").glob("ZIP_*.json"))
+
+
+def test_series_levels_listed(out: Path) -> None:
+    cat = _load(out / "catalog.json")
+    assert isinstance(cat, dict)
+    lv = {s["series_id"]: s["levels"] for s in cat["series"]}
+    assert lv["zillow.zhvi.b3.mid.sa"] == ["ZIP"]
+    assert lv["zillow.zhvi.all.mid.sa"] == ["CBSA", "ST", "US", "ZIP"]
+
+
+def test_zip_shard(out: Path) -> None:
+    shard = _load(out / "zip" / "787.json")
+    assert isinstance(shard, dict)
+    z = shard["78704"]
+    assert z["name"] == "78704 · Travis County, TX"
+    assert z["cbsa"] == "CBSA:12420" and z["non_disclosure"] is True
+    zhvi = z["series"]["zillow.zhvi.all.mid.sa"]
+    assert set(zhvi) == {
+        "start",
+        "end",
+        "value",
+        "y1",
+        "y5",
+        "vintage_date",
+        "release_date",
+        "flags",
+    }
+    assert zhvi["y1"] is not None and zhvi["y5"] is not None  # ZIP history kept from 2019
+    ppsf = z["series"]["realtor.median_list_ppsf.all.nsa"]
+    assert (ppsf["end"], ppsf["value"], ppsf["y1"]) == ("2026-10-31", 512.0, None)
+    nj = _load(out / "zip" / "087.json")
+    assert isinstance(nj, dict) and set(nj) == {"08701"}
+    assert sorted(p.name for p in (out / "zip").glob("*.json")) == [
+        "087.json",
+        "100.json",
+        "787.json",
+    ]

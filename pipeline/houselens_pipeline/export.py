@@ -8,7 +8,7 @@ from typing import Any
 import duckdb
 
 from houselens_pipeline.catalog import Catalog
-from houselens_pipeline.geo.reference import msad_cbsa_codes
+from houselens_pipeline.geo.reference import msad_cbsa_codes, zip_parents
 from houselens_pipeline.quality.known_events import load_known_events
 
 _HIDDEN_SERIES_FIELDS = ("vendor_key", "fixed_geo_id")
@@ -19,10 +19,12 @@ def _write(path: Path, obj: object) -> None:
 
 
 def export_site_data(con: duckdb.DuckDBPyConnection, out_dir: Path, catalog: Catalog) -> None:
-    """Write ``catalog.json``, ``geographies.json``, ``freshness.json`` and ``geo/*.json``.
+    """Write the site JSON: catalog, geographies, freshness, ``geo/*.json`` and ``zip/*.json``.
 
-    Only enabled sources' series that have data are exported, from the latest vintage. Stale
-    ``geo/*.json`` files are removed; nothing else in ``out_dir`` is touched.
+    Only enabled sources' series that have data are exported, from the latest vintage. ZIP codes
+    stay out of ``geographies.json`` and ``geo/``; they go to ``zip/<first 3 digits>.json``
+    shards with the latest value and the values 1 and 5 years earlier. Stale ``geo/*.json`` and
+    ``zip/*.json`` files are removed; nothing else in ``out_dir`` is touched.
 
     Args:
         con: Connection to a populated database.
@@ -57,6 +59,7 @@ def export_site_data(con: duckdb.DuckDBPyConnection, out_dir: Path, catalog: Cat
                 {
                     **{k: v for k, v in asdict(s).items() if k not in _HIDDEN_SERIES_FIELDS},
                     "national_only": geos_by_series[s.series_id] == ["US"],
+                    "levels": sorted({g.split(":")[0] for g in geos_by_series[s.series_id]}),
                 }
                 for s in series
             ],
@@ -67,10 +70,12 @@ def export_site_data(con: duckdb.DuckDBPyConnection, out_dir: Path, catalog: Cat
     ids_by_geo: dict[str, list[str]] = {}
     for s in series:
         for g in geos_by_series[s.series_id]:
-            ids_by_geo.setdefault(g, []).append(s.series_id)
+            if not g.startswith("ZIP:"):
+                ids_by_geo.setdefault(g, []).append(s.series_id)
     msad = msad_cbsa_codes()
     geos = con.execute(
-        "select geo_id, level, name, state_fips, non_disclosure from geography order by geo_id"
+        "select geo_id, level, name, state_fips, non_disclosure from geography"
+        " where level <> 'ZIP' order by geo_id"
     ).fetchall()
     _write(
         out_dir / "geographies.json",
@@ -118,7 +123,7 @@ def export_site_data(con: duckdb.DuckDBPyConnection, out_dir: Path, catalog: Cat
     rows = con.execute(
         "select geo_id, series_id, period_start, period_end, value, vintage_date, release_date,"
         " coalesce(quality_flags, []) from observation_latest where value is not null"
-        " order by geo_id, series_id, period_start"
+        " and geo_id not like 'ZIP:%' order by geo_id, series_id, period_start"
     ).fetchall()
     for gid, sid, ps, pe, val, vint, rel, flags in rows:
         if sid not in by_id:
@@ -135,3 +140,53 @@ def export_site_data(con: duckdb.DuckDBPyConnection, out_dir: Path, catalog: Cat
             stale.unlink()
     for gid, obj in files.items():
         _write(geo_dir / (gid.replace(":", "_") + ".json"), obj)
+    _export_zip_shards(con, out_dir / "zip", by_id)
+
+
+# Latest point per (series, ZIP) plus the same month 1 and 5 years earlier.
+_ZIP_POINTS = """
+with l as (select * from observation_latest where geo_id like 'ZIP:%' and value is not null),
+last as (select series_id, geo_id, max(period_start) ps from l group by 1, 2)
+select substr(l.geo_id, 5), l.series_id, l.period_start, l.period_end, l.value, l.vintage_date,
+       l.release_date, coalesce(l.quality_flags, []), y1.value, y5.value
+from last
+join l on l.series_id = last.series_id and l.geo_id = last.geo_id and l.period_start = last.ps
+left join l y1 on y1.series_id = last.series_id and y1.geo_id = last.geo_id
+  and y1.period_start = last.ps - interval 1 year
+left join l y5 on y5.series_id = last.series_id and y5.geo_id = last.geo_id
+  and y5.period_start = last.ps - interval 5 year
+order by 1, 2
+"""
+
+
+def _export_zip_shards(
+    con: duckdb.DuckDBPyConnection, zip_dir: Path, by_id: dict[str, Any]
+) -> None:
+    zip_dir.mkdir(parents=True, exist_ok=True)
+    names = dict(
+        con.execute(
+            "select geo_id, name || '|' || non_disclosure from geography where level = 'ZIP'"
+        ).fetchall()
+    )
+    parents = zip_parents()
+    shards: dict[str, dict[str, Any]] = {}
+    for z, sid, ps, pe, val, vint, rel, flags, y1, y5 in con.execute(_ZIP_POINTS).fetchall():
+        if sid not in by_id:
+            continue
+        if z not in (shard := shards.setdefault(z[:3], {})):
+            name, nd = names[f"ZIP:{z}"].rsplit("|", 1)
+            county, cbsa = parents.get(z, (None, None))
+            shard[z] = {
+                "name": name, "county": county, "cbsa": cbsa,
+                "non_disclosure": nd == "true", "series": {},
+            }  # fmt: skip
+        shard[z]["series"][sid] = {
+            "start": ps.isoformat(), "end": pe.isoformat(), "value": val, "y1": y1, "y5": y5,
+            "vintage_date": vint.isoformat(),
+            "release_date": rel.isoformat() if rel else None, "flags": list(flags),
+        }  # fmt: skip
+    for stale in zip_dir.glob("*.json"):
+        if stale.stem not in shards:
+            stale.unlink()
+    for prefix, obj in shards.items():
+        _write(zip_dir / f"{prefix}.json", obj)
