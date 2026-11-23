@@ -1,9 +1,9 @@
 # Zillow Research (ZHVI, ZORI)
 
-- **Files:** `https://files.zillowstatic.com/research/public_csvs/` + `zhvi/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv` (`zhvi_metro`), `zhvi/State_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv` (`zhvi_state`), `zori/Metro_zori_uc_sfrcondomfr_sm_sa_month.csv` (`zori_metro`). Plain GET, no key.
-- **Series:** `zillow.zhvi.all.mid.sa` (parts `zhvi_metro|zhvi_state`), `zillow.zori.all.sa` (part `zori_metro`).
-- **Shape:** `RegionID,SizeRank,RegionName,RegionType,StateName,<YYYY-MM-DD month-end>...`, unpivoted wide to long; each month column becomes a calendar-month period. Blank cells are skipped.
-- **Regions:** `country` gives level US, `state` gives ST (`vendor_name` = RegionName), `msa` gives CBSA with `code` null (names resolve in geo). `vendor_region_id` = RegionID.
+- **Files:** `https://files.zillowstatic.com/research/public_csvs/` + `zhvi/Metro_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv` (`zhvi_metro`), `zhvi/State_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv` (`zhvi_state`), `zori/Metro_zori_uc_sfrcondomfr_sm_sa_month.csv` (`zori_metro`). ZIP level: `zhvi/Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv` (`zhvi_zip`), `zhvi/Zip_zhvi_bdrmcnt_{1..5}_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv` (`zhvi_zip_b1`..`b5`; 5 = 5+ bedrooms), `zori/Zip_zori_uc_sfrcondomfr_sm_sa_month.csv` (`zori_zip`). Plain GET, no key. The ZIP files are ~10-125 MB each (~460 MB together).
+- **Series:** `zillow.zhvi.all.mid.sa` (parts `zhvi_metro|zhvi_state|zhvi_zip`), `zillow.zori.all.sa` (parts `zori_metro|zori_zip`), `zillow.zhvi.b1..b5.mid.sa` (ZIP only, one bedroom-count file each).
+- **Shape:** `RegionID,SizeRank,RegionName,RegionType,StateName,<YYYY-MM-DD month-end>...` (ZIP files add `State,City,Metro,CountyName`), unpivoted wide to long; each month column becomes a calendar-month period. Blank cells are skipped. ZIP files keep only months from 2019-01 on (enough for latest, 1-year and 5-year comparisons).
+- **Regions:** `country` gives level US, `state` gives ST (`vendor_name` = RegionName), `msa` gives CBSA with `code` null (names resolve in geo), `zip` gives ZIP with `code` = RegionName zero-padded to 5 digits (matched to Census ZCTAs; ~0.1% are not ZCTAs and are reported unmatched). `vendor_region_id` = RegionID.
 - **Release date:** null from the adapter; the files carry none, so the date HouseLens first saw the file is used ("first seen").
 - **License / attribution:** free for public use with clear attribution: "Data: Zillow Research (ZHVI, ZORI), used with attribution." Show it wherever these series appear.
 - **Hard rule:** no Zillow or Bridge API, and never scrape zillow.com pages. Only these public Research CSVs are used, and Zillow API data is never stored.

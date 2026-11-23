@@ -32,7 +32,21 @@ Realtor.com's research data page (realtor.com/research/data, read 2026-11-18) as
 attribute to Realtor.com ® Economic Research (or shortened to Realtor.com ® in cases where
 space is limited) when quoting members of our team and/or using our housing data, research,
 and insights". HouseLens displays "Data: Realtor.com ® Economic Research." and never scrapes
-realtor.com pages.
+realtor.com pages. The property analyzer compares a visitor's own typed or pasted listing details
+with these area figures; HouseLens never fetches listing pages from any portal.
+
+## U.S. Census Bureau reference files (geography only)
+
+Public domain (U.S. government work). Used only to build `pipeline/houselens_pipeline/geo/data/`:
+the July 2023 delineation List 1 (CBSAs, metro divisions, county membership) and the 2020
+ZCTA-to-county relationship file (`tab20_zcta520_county20_natl.txt`), which assigns each ZIP
+code area to the county holding most of its land. No data values are displayed from these files.
+
+## HUD Small Area Fair Market Rents: NOT USED (yet)
+
+HUD's download site answers automated requests with a bot challenge (HTTP 202, empty body), so
+HouseLens does not fetch it. The sanctioned route is the HUD User API, which needs a free token
+the owner would register; add it then.
 
 ## Redfin Data Center: DISABLED (manual drop only)
 
