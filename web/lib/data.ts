@@ -78,12 +78,13 @@ export function useZipShard(zip: string) {
 
 /**
  * Loads one geography's series file.
- * @param geoId - e.g. "CBSA:12420"
+ * @param geoId - e.g. "CBSA:12420"; "" (no geography yet) fetches nothing
  * @returns the query result
  */
 export function useGeoFile(geoId: string) {
   return useQuery({
     queryKey: ["geo", geoId],
+    enabled: geoId !== "",
     queryFn: () => getJson<GeoFile>(`/data/geo/${geoFileName(geoId)}.json`),
   });
 }

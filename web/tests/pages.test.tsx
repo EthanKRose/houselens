@@ -61,10 +61,14 @@ describe("AboutPage", () => {
 });
 
 describe("SiteHeader", () => {
-  it("links to the four pages", () => {
+  it("links to the five pages", () => {
     render(<SiteHeader />);
     const nav = screen.getByRole("navigation", { name: "Main" });
-    expect(nav.querySelectorAll("a")).toHaveLength(4);
+    expect(nav.querySelectorAll("a")).toHaveLength(5);
+    expect(screen.getByRole("link", { name: "Analyze a property" })).toHaveAttribute(
+      "href",
+      "/property",
+    );
     expect(screen.getByRole("link", { name: "Sources" })).toHaveAttribute("href", "/sources");
     expect(screen.getByRole("link", { name: "HouseLens" })).toHaveAttribute("href", "/");
   });
