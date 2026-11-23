@@ -169,18 +169,21 @@ def _export_zip_shards(
         ).fetchall()
     )
     parents = zip_parents()
+    # Every canonical ZIP gets an entry, figures or not, so the page can fall back to its metro.
     shards: dict[str, dict[str, Any]] = {}
+    for gid, label in names.items():
+        z = gid.removeprefix("ZIP:")
+        name, nd = label.rsplit("|", 1)
+        county, cbsa = parents.get(z, (None, None))
+        shards.setdefault(z[:3], {})[z] = {
+            "name": name, "county": county, "cbsa": cbsa,
+            "non_disclosure": nd == "true", "series": {},
+        }  # fmt: skip
     for z, sid, ps, pe, val, vint, rel, flags, y1, y5 in con.execute(_ZIP_POINTS).fetchall():
-        if sid not in by_id:
+        entry = shards.get(z[:3], {}).get(z)
+        if sid not in by_id or entry is None:  # not exported, or no longer a canonical ZIP
             continue
-        if z not in (shard := shards.setdefault(z[:3], {})):
-            name, nd = names[f"ZIP:{z}"].rsplit("|", 1)
-            county, cbsa = parents.get(z, (None, None))
-            shard[z] = {
-                "name": name, "county": county, "cbsa": cbsa,
-                "non_disclosure": nd == "true", "series": {},
-            }  # fmt: skip
-        shard[z]["series"][sid] = {
+        entry["series"][sid] = {
             "start": ps.isoformat(), "end": pe.isoformat(), "value": val, "y1": y1, "y5": y5,
             "vintage_date": vint.isoformat(),
             "release_date": rel.isoformat() if rel else None, "flags": list(flags),

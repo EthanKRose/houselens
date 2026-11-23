@@ -189,3 +189,18 @@ def test_broken_part_keeps_earlier_vintage_in_export(tmp_path: Path) -> None:
     assert cli.main(["export", "--db", db, "--out", str(tmp_path / "after")]) == 0
     before = _fhfa_points(tmp_path / "before")
     assert before and _fhfa_points(tmp_path / "after") == before
+
+
+def test_zip_and_metro_with_the_same_code_both_ingest(tmp_path: Path) -> None:
+    assert _run(tmp_path) == 0
+    con = connect(tmp_path / "t.duckdb")
+    rows = dict(
+        con.execute(
+            "select geo_id, value from observation where series_id ="
+            " 'realtor.median_list_price.all.nsa' and period_start = '2026-10-01'"
+            " and geo_id in ('ZIP:12420', 'CBSA:12420')"
+        ).fetchall()
+    )
+    con.close()
+    assert rows["ZIP:12420"] == 2400000.0
+    assert rows["CBSA:12420"] != 2400000.0

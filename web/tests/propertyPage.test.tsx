@@ -47,7 +47,9 @@ it("compares a property with its ZIP, same bedroom count first", async () => {
   expect(within(ppsf).getByText("-2.3%")).toBeInTheDocument();
   const checks = screen.getByRole("list", { name: "Deal checks" });
   expect(
-    within(checks).getByText(/9% below the typical value of similar homes/),
+    within(checks).getByText(
+      /9% below the typical value of homes with the same bedroom count in this ZIP/,
+    ),
   ).toBeInTheDocument();
   expect(within(checks).getByText(/80 days: buyers have room to negotiate/)).toBeInTheDocument();
   expect(screen.getByText(/Typical value trend here/)).toBeInTheDocument();
@@ -101,4 +103,28 @@ it("says when a ZIP has no data", async () => {
 it("asks for a ZIP and price before showing results", () => {
   show();
   expect(screen.getByText(/Enter a ZIP code and asking price/)).toBeInTheDocument();
+});
+
+it("falls back to the metro for a ZIP without its own figures, and labels it", async () => {
+  show("z=78705&p=500000&bd=2");
+  const row = (await screen.findByRole("rowheader", { name: /Zillow typical home value/ })).closest(
+    "tr",
+  )!;
+  expect(row.nextElementSibling).toHaveTextContent(
+    /Metro figure \(Austin-Round Rock-San Marcos, TX\)/,
+  );
+  expect(
+    screen.getByRole("heading", { name: /Compared with ZIP 78705 · Travis County, TX/ }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("list", { name: "Deal checks" })).toHaveTextContent(
+    /the metro's typical home value/,
+  );
+});
+
+it("says there is no data for a rural ZIP with no figures and no metro", async () => {
+  show("z=03254&p=300000"); // a real Census ZIP outside any metro, with no ZIP figures in the fixtures
+  expect(
+    await screen.findByText("No data for ZIP 03254. Check the ZIP, or try a nearby one."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("table", { name: /Area figures/ })).toBeNull();
 });

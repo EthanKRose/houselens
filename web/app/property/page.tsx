@@ -356,9 +356,9 @@ function Analyzer() {
           </p>
         ) : catalogQ.isError || shardQ.isError ? (
           <p role="alert">Could not load housing data. Please try again later.</p>
-        ) : !catalogQ.data || shardQ.isLoading ? (
+        ) : !catalogQ.data || shardQ.isLoading || (entry?.cbsa && metroQ.isLoading) ? (
           <p>Loading…</p>
-        ) : !entry && !metroQ.data ? (
+        ) : Object.keys(bench).length === 0 ? (
           <p role="alert" className="text-sm">
             No data for ZIP {zip}. Check the ZIP, or try a nearby one.
           </p>

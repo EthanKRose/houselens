@@ -91,7 +91,14 @@ class RealtorAdapter:
             if name not in parts:
                 continue
             df = pl.read_csv(io.BytesIO(parts[name]), infer_schema=False).with_columns(
-                vendor_region_id=pl.col(id_col) if id_col else pl.lit("US"),
+                # "zip:" keeps ZIP ids apart from CBSA codes: 336 ZIPs (e.g. 12420) share one.
+                vendor_region_id=(
+                    pl.lit("US")
+                    if id_col is None
+                    else ("zip:" + pl.col(id_col))
+                    if level == "ZIP"
+                    else pl.col(id_col)
+                ),  # fmt: skip
                 vendor_name=pl.col(name_col),
                 level=pl.lit(level),
                 code=pl.col(code_col) if code_col else pl.lit(None, pl.String),

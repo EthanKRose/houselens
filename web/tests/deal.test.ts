@@ -81,7 +81,9 @@ describe("flip", () => {
       sellingPct: 8,
       closingPct: 3,
     });
-    const hold = liveIn(200_000, { ...A, closingPct: 3 }).total * 6;
+    // While held, only interest is a cost (principal paid builds equity in the price already counted).
+    const own = liveIn(200_000, { ...A, closingPct: 3 });
+    const hold = ((own.loan * 0.06) / 12 + own.tax + own.insurance + own.hoa) * 6;
     const cost = 200_000 + 6_000 + 40_000 + hold + 24_000;
     expect(f.totalCost).toBeCloseTo(cost, 6);
     expect(f.profit).toBeCloseTo(300_000 - cost, 6);
@@ -106,6 +108,10 @@ describe("signals", () => {
   it("flags negative rental cash flow as bad", () => {
     const s = signals("rental", { cashFlowMo: -150, capRatePct: 3.5, onePctRule: 0.5 });
     expect(s.filter((x) => x.level === "bad")).toHaveLength(3);
+  });
+  it("names what the price was compared with", () => {
+    const s = signals("live", { priceVsValuePct: 8, valueWhat: "the metro's typical home value" });
+    expect(s[0].text).toBe("8% above the metro's typical home value.");
   });
   it("skips checks it has no numbers for", () => {
     expect(signals("live", {})).toEqual([]);

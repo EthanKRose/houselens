@@ -234,3 +234,29 @@ def test_coverage_is_checked_per_geo_level(con: duckdb.DuckDBPyConnection) -> No
     assert write_vintage(con, "src", pl.concat([_obs(n_geos=3), zips]), "a", D1).status == "ok"
     r = write_vintage(con, "src", zips.with_columns(value=pl.lit(2.0)), "b", D2)
     assert r.status == "failed" and "CBSA" in r.message, r.message
+
+
+def test_zip_churn_in_monthly_files_does_not_ratchet_coverage(
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    # Realtor.com's ZIP file holds one month; ZIPs come and go. Coverage must compare with the
+    # latest month only, not every ZIP ever seen, or it fails forever once churn adds up.
+    def month(m: int, first: int) -> pl.DataFrame:
+        return pl.DataFrame(
+            [
+                {
+                    "series_id": "s", "geo_id": f"ZIP:{z:05d}", "period_start": date(2026, m, 1),
+                    "period_end": date(2026, m, 28), "value": 1.0, "release_date": None,
+                    "quality_flags": [],
+                }
+                for z in range(first, first + 20)
+            ],
+            schema=SCHEMA,
+        )  # fmt: skip
+
+    for m in range(1, 6):  # each month drops one ZIP and adds a new one
+        r = write_vintage(con, "src", month(m, m), f"c{m}", date(2026, m, 15))
+        assert r.status == "ok", (m, r.message)
+    # a real drop in the latest month still fails
+    r = write_vintage(con, "src", month(6, 6).head(15), "c6", date(2026, 6, 15))
+    assert r.status == "failed" and "ZIP" in r.message

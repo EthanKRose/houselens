@@ -58,6 +58,16 @@ export function PropertyResults({ input, catalog }: { input: ResultsInput; catal
     marginPct: flip$.marginPct,
     price,
     seventyPctMaxPrice: flip$.seventyPctMaxPrice,
+    valueWhat:
+      bench.value?.from === "metro"
+        ? "the metro's typical home value"
+        : bench.value?.seriesId.startsWith("zillow.zhvi.b")
+          ? "the typical value of homes with the same bedroom count in this ZIP"
+          : "the typical value of homes in this ZIP",
+    ppsfWhat:
+      bench.ppsf?.from === "metro"
+        ? "the metro's median asking price per square foot"
+        : "the ZIP's median asking price per square foot",
   });
 
   const rows: {

@@ -119,7 +119,10 @@ export function rental(price: number, rentMo: number | null, a: Assumptions) {
  * @returns total cost, profit, margin and the "70% rule" maximum price (null without resale)
  */
 export function flip(price: number, resale: number | null, a: Assumptions) {
-  const holding = liveIn(price, a).total * a.holdMonths;
+  // Only interest is a holding cost: principal repaid is part of the price, already counted.
+  const own = liveIn(price, a);
+  const holding =
+    ((own.loan * a.ratePct) / 100 / 12 + own.tax + own.insurance + own.hoa) * a.holdMonths;
   const selling = resale === null ? 0 : (resale * a.sellingPct) / 100;
   const totalCost = price + (price * a.closingPct) / 100 + a.rehab + holding + selling;
   const profit = resale === null ? null : resale - totalCost;
@@ -147,6 +150,10 @@ export type SignalInputs = {
   marginPct?: number | null;
   price?: number;
   seventyPctMaxPrice?: number | null;
+  /** What the price was compared with; defaults to similar homes in the ZIP. */
+  valueWhat?: string;
+  /** What the price per sq ft was compared with; defaults to the ZIP's median. */
+  ppsfWhat?: string;
 };
 
 const n0 = (x: number) => Math.abs(Math.round(x));
@@ -169,11 +176,15 @@ function vsArea(pct: number, what: string): Signal {
 export function signals(mode: "live" | "rental" | "flip", m: SignalInputs): Signal[] {
   const out: Signal[] = [];
   if (has(m.priceVsValuePct)) {
-    out.push(vsArea(m.priceVsValuePct, "the typical value of similar homes in this ZIP"));
+    out.push(
+      vsArea(m.priceVsValuePct, m.valueWhat ?? "the typical value of similar homes in this ZIP"),
+    );
   }
   if (mode === "live") {
     if (has(m.ppsfVsAreaPct))
-      out.push(vsArea(m.ppsfVsAreaPct, "the ZIP's median asking price per square foot"));
+      out.push(
+        vsArea(m.ppsfVsAreaPct, m.ppsfWhat ?? "the ZIP's median asking price per square foot"),
+      );
     if (has(m.domDays)) {
       out.push(
         m.domDays >= 60

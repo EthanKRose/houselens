@@ -147,10 +147,25 @@ def test_zip_shard(out: Path) -> None:
     assert zhvi["y1"] is not None and zhvi["y5"] is not None  # ZIP history kept from 2019
     ppsf = z["series"]["realtor.median_list_ppsf.all.nsa"]
     assert (ppsf["end"], ppsf["value"], ppsf["y1"]) == ("2026-10-31", 512.0, None)
-    nj = _load(out / "zip" / "087.json")
-    assert isinstance(nj, dict) and set(nj) == {"08701"}
-    assert sorted(p.name for p in (out / "zip").glob("*.json")) == [
-        "087.json",
-        "100.json",
-        "787.json",
-    ]
+    # every Census ZIP is listed, so a ZIP without figures can still fall back to its metro
+    assert shard["78705"] == {
+        "name": "78705 · Travis County, TX", "county": "Travis County", "cbsa": "CBSA:12420",
+        "non_disclosure": True, "series": {},
+    }  # fmt: skip
+    assert len(list((out / "zip").glob("*.json"))) > 800
+
+
+def test_zip_dropped_from_reference_does_not_break_export(out: Path, tmp_path: Path) -> None:
+    import shutil
+
+    db = tmp_path / "copy.duckdb"
+    shutil.copy(out.parent / "f.duckdb", db)
+    con = connect(db)
+    con.execute(
+        "insert into observation (series_id, geo_id, period_start, period_end, value,"
+        " vintage_date) values ('zillow.zhvi.all.mid.sa', 'ZIP:00000', '2026-09-01',"
+        " '2026-09-30', 1.0, '2026-11-01')"
+    )
+    export_site_data(con, tmp_path / "site", load_catalog())
+    con.close()
+    assert not (tmp_path / "site" / "zip" / "000.json").exists()

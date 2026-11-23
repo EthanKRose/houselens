@@ -33,8 +33,13 @@ where l.series_id is null
 _COVERAGE = """
 with n as (select series_id, split_part(geo_id, ':', 1) lvl, count(distinct geo_id) c
            from _new group by 1, 2),
-     cur as (select series_id, split_part(geo_id, ':', 1) lvl, count(distinct geo_id) c
-             from observation_latest where series_id in (select series_id from _new) group by 1, 2)
+     l as (select series_id, geo_id, period_start, split_part(geo_id, ':', 1) lvl,
+                  max(period_start) over (partition by series_id, split_part(geo_id, ':', 1)) last
+           from observation_latest where series_id in (select series_id from _new)),
+     -- ZIPs: only the latest month counts; monthly ZIP files churn, so "every ZIP ever seen"
+     -- would ratchet up until the check failed forever.
+     cur as (select series_id, lvl, count(distinct geo_id) c from l
+             where lvl <> 'ZIP' or period_start = last group by 1, 2)
 select series_id || ' ' || lvl, coalesce(n.c, 0), cur.c from cur left join n using (series_id, lvl)
 where coalesce(n.c, 0) < 0.95 * cur.c order by 1
 """

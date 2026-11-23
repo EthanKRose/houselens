@@ -93,14 +93,26 @@ def test_price_reduced_share_is_a_percent() -> None:
 def test_zip_rows() -> None:
     out = _out()
     reg = {r["vendor_region_id"]: r for r in out.regions.to_dicts()}
-    assert reg["78704"] == {
-        "vendor_region_id": "78704",
+    assert reg["zip:78704"] == {
+        "vendor_region_id": "zip:78704",
         "vendor_name": "austin, tx",
         "level": "ZIP",
         "code": "78704",
     }
-    z = out.obs.filter(vendor_region_id="78704", period_start=date(2026, 10, 1))
+    z = out.obs.filter(vendor_region_id="zip:78704", period_start=date(2026, 10, 1))
     by = dict(zip(z["series_id"], z["value"], strict=True))
     assert by["realtor.median_list_ppsf.all.nsa"] == 512.0
     assert by[PRICE] == 725000.0
     assert by["realtor.price_reduced_share.all.nsa"] == 23.32
+
+
+def test_zip_ids_never_collide_with_metro_codes() -> None:
+    # ZIP 12420 (Cragsmoor, NY) shares its number with CBSA 12420 (Austin).
+    reg = {r["vendor_region_id"]: r for r in _out().regions.to_dicts()}
+    assert reg["12420"]["level"] == "CBSA"
+    assert reg["zip:12420"] == {
+        "vendor_region_id": "zip:12420",
+        "vendor_name": None,
+        "level": "ZIP",
+        "code": "12420",
+    }
