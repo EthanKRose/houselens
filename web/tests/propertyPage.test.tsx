@@ -188,4 +188,7 @@ it("does not lose a property saved in another tab", async () => {
     (p: { zip: string }) => p.zip,
   );
   expect(ids).toEqual(["10001", "78704"]);
+  // the market rate in use is saved even though it was not edited
+  const [, mine] = JSON.parse(localStorage.getItem("houselens.properties.v1")!);
+  expect(mine.assumptions.ratePct).toBeGreaterThan(0);
 });

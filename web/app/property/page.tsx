@@ -207,6 +207,7 @@ function Analyzer() {
         return n !== undefined && Number.isFinite(n) && n >= 0 ? [[k, n]] : [];
       }),
     );
+    own.ratePct ??= assumptions.ratePct; // keep the rate it was judged at, not next week's
     const p: Property = {
       ...inputs,
       zip: inputs.zip,
@@ -214,7 +215,7 @@ function Analyzer() {
       notes: notes.trim() || undefined,
       rent: ok(num(rentText)) ? num(rentText) : undefined,
       resale: ok(num(resaleText)) ? num(resaleText) : undefined,
-      assumptions: Object.keys(own).length ? own : undefined,
+      assumptions: own,
       id: !asNew && openedId ? openedId : `${Date.now()}`,
       savedAt: new Date().toISOString().slice(0, 10),
     };

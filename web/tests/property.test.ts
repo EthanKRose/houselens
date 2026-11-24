@@ -86,7 +86,7 @@ it("reads a saved property's own figures, dropping bad ones from imported files"
       ...base,
       rent: 2500,
       resale: -5,
-      assumptions: { ratePct: 5.5, downPct: -1, nope: 3, taxPct: "2" } as never,
+      assumptions: { ratePct: 5.5, downPct: -1, nope: 3, taxPct: "2", toString: 5 } as never,
     }),
   ).toEqual({ rent: "2500", resale: "", edits: { ratePct: "5.5" } });
   expect(ownFigures({ ...base, assumptions: "junk" as never })).toEqual({

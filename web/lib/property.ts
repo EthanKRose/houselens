@@ -17,7 +17,8 @@ export type Property = {
   notes?: string;
   mode: Mode;
   savedAt: string;
-  /** The visitor's own rent, resale value and assumptions, so a reopened property adds up the same. */
+  /** The visitor's own rent, resale value and assumptions (always including the rate used), so a
+   * reopened property adds up the same. */
   rent?: number;
   resale?: number;
   assumptions?: Partial<Assumptions>;
@@ -151,7 +152,7 @@ export function ownFigures(p: Property) {
   const edits: Partial<Record<keyof Assumptions, string>> = {};
   if (p.assumptions && typeof p.assumptions === "object") {
     for (const [k, v] of Object.entries(p.assumptions)) {
-      if (k in DEFAULTS && typeof v === "number" && Number.isFinite(v) && v >= 0) {
+      if (Object.hasOwn(DEFAULTS, k) && typeof v === "number" && Number.isFinite(v) && v >= 0) {
         edits[k as keyof Assumptions] = String(v);
       }
     }
