@@ -4,9 +4,9 @@ HouseLens is a static, source-transparent tracker of U.S. housing data. It pulls
 license-compatible series (FRED, FHFA, Zillow Research, Realtor.com Research), keeps every
 release as a dated vintage, and publishes a static site where every number shows its source,
 method, seasonal adjustment, release date and vintage date. Sources and their terms are listed in
-[LICENSES.md](LICENSES.md); the design is in [docs/spec.md](docs/spec.md).
+[LICENSES.md](LICENSES.md); how each source is used is in [docs/sources/](docs/sources/).
 
-**Analyze a property:** https://houselens-us.vercel.app/property compares a home you found (typed or pasted from a listing) with free ZIP-level figures and judges it as a home, a rental or a flip. See [docs/spec.md §15](docs/spec.md).
+**Analyze a property:** https://houselens-us.vercel.app/property compares a home you found (typed or pasted from a listing) with free ZIP-level figures and judges it as a home, a rental or a flip.
 
 **Live site:** https://houselens-us.vercel.app (the original `houselens-five.vercel.app` permanently redirects there).
 
