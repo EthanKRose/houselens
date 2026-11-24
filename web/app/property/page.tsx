@@ -11,6 +11,7 @@ import { DEFAULTS, type Assumptions } from "@/lib/deal";
 import { parseListing } from "@/lib/parseListing";
 import {
   loadSaved,
+  ownFigures,
   parsePropertyParams,
   saveSaved,
   serializeProperty,
@@ -99,6 +100,15 @@ function Analyzer() {
   const [shareNote, setShareNote] = useState("");
   const [saved, setSaved] = useState<Property[]>([]);
   const [storageOk, setStorageOk] = useState(true);
+  /** The saved property now in the form, so saving updates it instead of adding a copy. */
+  const [openedId, setOpenedId] = useState<string | null>(null);
+
+  // Saves made in another tab show up here too.
+  useEffect(() => {
+    const refresh = () => setSaved(loadSaved());
+    window.addEventListener("storage", refresh);
+    return () => window.removeEventListener("storage", refresh);
+  }, []);
 
   // Share links and saved properties are read once, after mount (browser-only state).
   useEffect(() => {
@@ -182,29 +192,45 @@ function Analyzer() {
     }
   };
 
-  const save = () => {
-    if (!inputs.zip || !inputs.price) return;
-    const next = [
-      ...saved,
-      {
-        ...inputs,
-        zip: inputs.zip,
-        price: inputs.price,
-        notes: notes.trim() || undefined,
-        id: `${Date.now()}`,
-        savedAt: new Date().toISOString().slice(0, 10),
-      },
-    ];
+  /** Applies a change to the stored list as it is now, so another tab's saves are not lost. */
+  const updateSaved = (change: (list: Property[]) => Property[]) => {
+    const next = change(storageOk ? loadSaved() : saved);
     setSaved(next);
     setStorageOk(saveSaved(next));
   };
 
-  const updateSaved = (next: Property[]) => {
-    setSaved(next);
-    setStorageOk(saveSaved(next));
+  const save = (asNew: boolean) => {
+    if (!inputs.zip || !inputs.price) return;
+    const own = Object.fromEntries(
+      Object.entries(edits).flatMap(([k, v]) => {
+        const n = num(v);
+        return n !== undefined && Number.isFinite(n) && n >= 0 ? [[k, n]] : [];
+      }),
+    );
+    const p: Property = {
+      ...inputs,
+      zip: inputs.zip,
+      price: inputs.price,
+      notes: notes.trim() || undefined,
+      rent: ok(num(rentText)) ? num(rentText) : undefined,
+      resale: ok(num(resaleText)) ? num(resaleText) : undefined,
+      assumptions: Object.keys(own).length ? own : undefined,
+      id: !asNew && openedId ? openedId : `${Date.now()}`,
+      savedAt: new Date().toISOString().slice(0, 10),
+    };
+    updateSaved((list) =>
+      list.some((x) => x.id === p.id) ? list.map((x) => (x.id === p.id ? p : x)) : [...list, p],
+    );
+    setOpenedId(p.id);
   };
+  const updating = openedId !== null && saved.some((p) => p.id === openedId);
 
   const open = (p: Property) => {
+    const own = ownFigures(p);
+    setRentText(own.rent);
+    setResaleText(own.resale);
+    setEdits(own.edits);
+    setOpenedId(p.id);
     setForm({
       zip: p.zip,
       price: String(p.price),
@@ -370,8 +396,10 @@ function Analyzer() {
               sqft: inputs.sqft,
               mode,
               assumptions,
-              rentOverride: ok(num(rentText)) ? num(rentText) : undefined,
-              resaleOverride: ok(num(resaleText)) ? num(resaleText) : undefined,
+              // Your own rent or resale counts only where its field is on screen.
+              rentOverride: mode === "rental" && ok(num(rentText)) ? num(rentText) : undefined,
+              resaleOverride: mode === "flip" && ok(num(resaleText)) ? num(resaleText) : undefined,
+              nonDisclosure: entry?.non_disclosure ?? false,
               bench,
               areaName: entry ? `ZIP ${entry.name}` : `ZIP ${zip}`,
               metroName,
@@ -393,7 +421,16 @@ function Analyzer() {
             inputMode="text"
           />
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={save}>Save to this browser</Button>
+            {updating ? (
+              <>
+                <Button onClick={() => save(false)}>Update saved property</Button>
+                <Button variant="outline" onClick={() => save(true)}>
+                  Save as new
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => save(true)}>Save to this browser</Button>
+            )}
             <Button variant="outline" onClick={share}>
               Copy share link
             </Button>

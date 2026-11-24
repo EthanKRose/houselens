@@ -260,3 +260,14 @@ def test_zip_churn_in_monthly_files_does_not_ratchet_coverage(
     # a real drop in the latest month still fails
     r = write_vintage(con, "src", month(6, 6).head(15), "c6", date(2026, 6, 15))
     assert r.status == "failed" and "ZIP" in r.message
+
+
+def test_mass_revision_fails_and_writes_nothing(
+    con: duckdb.DuckDBPyConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(ingest, "MAX_REVISED_ROWS", 2)
+    assert write_vintage(con, "src", _obs(), "a", D1).status == "ok"  # new rows never count
+    r = write_vintage(con, "src", _obs(value=2.0), "b", D2)
+    assert (r.status, r.rows_written) == ("failed", 0)
+    assert "3 existing rows revised" in r.message
+    assert _count(con) == 3

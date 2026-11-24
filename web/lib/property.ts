@@ -1,5 +1,7 @@
 /** A property a visitor is analyzing: browser-only saving, backups and share links. */
 
+import { DEFAULTS, type Assumptions } from "./deal";
+
 /** Which use the visitor is judging the property for. */
 export type Mode = "live" | "rental" | "flip";
 
@@ -15,10 +17,16 @@ export type Property = {
   notes?: string;
   mode: Mode;
   savedAt: string;
+  /** The visitor's own rent, resale value and assumptions, so a reopened property adds up the same. */
+  rent?: number;
+  resale?: number;
+  assumptions?: Partial<Assumptions>;
 };
 
 /** Property inputs as read from a share link; anything invalid is simply absent. */
-export type PropertyInputs = Partial<Omit<Property, "id" | "savedAt" | "mode">> & { mode: Mode };
+export type PropertyInputs = Partial<
+  Omit<Property, "id" | "savedAt" | "mode" | "rent" | "resale" | "assumptions">
+> & { mode: Mode };
 
 const KEY = "houselens.properties.v1";
 const MODES: Mode[] = ["live", "rental", "flip"];
@@ -130,4 +138,23 @@ export function parsePropertyParams(q: URLSearchParams): PropertyInputs {
   const a = q.get("a");
   if (a) out.address = a.slice(0, 200);
   return out;
+}
+
+/**
+ * The visitor's own figures from a saved property, as form text; anything invalid is dropped.
+ * Saved entries can come from an imported file, so nothing here is trusted.
+ * @param p - a saved property
+ * @returns rent and resale text ("" when unset) and the assumption edits
+ */
+export function ownFigures(p: Property) {
+  const text = (n: unknown) => (positive(n) ? String(n) : "");
+  const edits: Partial<Record<keyof Assumptions, string>> = {};
+  if (p.assumptions && typeof p.assumptions === "object") {
+    for (const [k, v] of Object.entries(p.assumptions)) {
+      if (k in DEFAULTS && typeof v === "number" && Number.isFinite(v) && v >= 0) {
+        edits[k as keyof Assumptions] = String(v);
+      }
+    }
+  }
+  return { rent: text(p.rent), resale: text(p.resale), edits };
 }

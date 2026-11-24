@@ -9,6 +9,7 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(s
 import PropertyPage from "@/app/property/page";
 
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn(); // jsdom has no layout
   vi.stubGlobal("fetch", async (path: string) => {
     try {
       const body = readFileSync(`public${path}`, "utf8");
@@ -127,4 +128,64 @@ it("says there is no data for a rural ZIP with no figures and no metro", async (
     await screen.findByText("No data for ZIP 03254. Check the ZIP, or try a nearby one."),
   ).toBeInTheDocument();
   expect(screen.queryByRole("table", { name: /Area figures/ })).toBeNull();
+});
+
+it("shows Realtor.com's quality flag and the non-disclosure note", async () => {
+  show("z=78704&p=800000&bd=3&sf=1600");
+  const row = (await screen.findByRole("rowheader", { name: /Days on market/ })).closest("tr")!;
+  expect(row.nextElementSibling).toHaveTextContent(/Flag: Realtor.com flags this value/);
+  const zillow = screen.getByRole("rowheader", { name: /3 bedrooms/ }).closest("tr")!;
+  expect(zillow.nextElementSibling).not.toHaveTextContent(/Flag:/);
+  expect(screen.getByText(/Non-disclosure state: sale prices are not public/)).toBeInTheDocument();
+});
+
+it("keeps your own rent with the property it belongs to", async () => {
+  const view = show("z=78704&p=400000&bd=2&m=rental");
+  await screen.findByRole("heading", { name: "As a rental" });
+  type(/Expected rent/, "3000");
+  fireEvent.click(screen.getByRole("button", { name: "Save to this browser" }));
+  view.unmount();
+  show("z=78704&p=500000&bd=2&m=rental");
+  await screen.findByRole("heading", { name: "As a rental" });
+  type(/^Address/, "Other house");
+  fireEvent.click(screen.getByRole("button", { name: "Save to this browser" }));
+  type(/Expected rent/, "9999");
+  // opening the first property brings back its own rent, not the one typed for the other house
+  const saved = screen.getByRole("table", { name: "Saved properties side by side" });
+  fireEvent.click(within(saved).getAllByRole("button", { name: /^Open/ })[0]);
+  expect(await screen.findByText("Rent used")).toBeInTheDocument();
+  expect(screen.getByText("Rent used").nextElementSibling).toHaveTextContent("$3,000/mo");
+  // in live mode a typed rent no longer counts
+  fireEvent.click(screen.getByRole("radio", { name: "Live in it" }));
+  expect(screen.getByText(/Price-to-rent ratio/).nextElementSibling).toHaveTextContent(
+    /17\.3 years/,
+  );
+});
+
+it("updates an opened property instead of adding a copy", async () => {
+  show("z=78704&p=800000&bd=3");
+  await screen.findByRole("heading", { name: "As a home to live in" });
+  fireEvent.click(screen.getByRole("button", { name: "Save to this browser" }));
+  type(/^Notes/, "needs a roof");
+  fireEvent.click(screen.getByRole("button", { name: "Update saved property" }));
+  const saved = screen.getByRole("table", { name: "Saved properties side by side" });
+  expect(within(saved).getAllByRole("row")).toHaveLength(2); // header + one property
+  expect(within(saved).getByText("needs a roof")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save as new" }));
+  expect(within(saved).getAllByRole("row")).toHaveLength(3);
+});
+
+it("does not lose a property saved in another tab", async () => {
+  show("z=78704&p=800000&bd=3");
+  await screen.findByRole("heading", { name: "As a home to live in" });
+  // another tab saved a property after this one loaded
+  localStorage.setItem(
+    "houselens.properties.v1",
+    JSON.stringify([{ id: "1", zip: "10001", price: 900000, mode: "live", savedAt: "2026-11-01" }]),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save to this browser" }));
+  const ids = JSON.parse(localStorage.getItem("houselens.properties.v1")!).map(
+    (p: { zip: string }) => p.zip,
+  );
+  expect(ids).toEqual(["10001", "78704"]);
 });

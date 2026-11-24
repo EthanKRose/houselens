@@ -30,6 +30,8 @@ export type ResultsInput = {
   bench: Partial<Record<BenchmarkKey, Benchmark>>;
   areaName: string;
   metroName: string | null;
+  /** True in states where sale prices are not public (weaker price estimates). */
+  nonDisclosure: boolean;
 };
 
 /**
@@ -144,6 +146,11 @@ export function PropertyResults({ input, catalog }: { input: ResultsInput; catal
                       <td colSpan={4} className="text-muted-foreground pb-2 text-xs">
                         {b.from === "metro" && <strong>Metro figure ({input.metroName}) · </strong>}
                         {provenanceText(meta, source, b.releaseDate, b.vintageDate, b.end)}
+                        {b.flags.map((f) => (
+                          <span key={f} className="block text-amber-800 dark:text-amber-300">
+                            Flag: {catalog.known_events[f] ?? f}
+                          </span>
+                        ))}
                       </td>
                     </tr>
                   </Fragment>
@@ -152,6 +159,12 @@ export function PropertyResults({ input, catalog }: { input: ResultsInput; catal
             </tbody>
           </table>
         </div>
+        {input.nonDisclosure && (
+          <p className="text-sm">
+            Non-disclosure state: sale prices are not public here, so price estimates rest on
+            limited data.
+          </p>
+        )}
         {trend && (
           <p className="text-sm">
             Typical value trend here: {pct(changePct(trend.value, trend.y1))} over 1 year,{" "}

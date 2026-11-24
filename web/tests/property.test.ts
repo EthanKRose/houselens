@@ -3,6 +3,7 @@ import {
   exportSaved,
   importSaved,
   loadSaved,
+  ownFigures,
   parsePropertyParams,
   saveSaved,
   serializeProperty,
@@ -75,5 +76,22 @@ describe("share links", () => {
     expect(parsePropertyParams(new URLSearchParams("z=7870&p=-5&bd=abc&m=evil&sf=0"))).toEqual({
       mode: "live",
     });
+  });
+});
+
+it("reads a saved property's own figures, dropping bad ones from imported files", () => {
+  const base = { id: "1", zip: "78704", price: 1, mode: "live" as const, savedAt: "x" };
+  expect(
+    ownFigures({
+      ...base,
+      rent: 2500,
+      resale: -5,
+      assumptions: { ratePct: 5.5, downPct: -1, nope: 3, taxPct: "2" } as never,
+    }),
+  ).toEqual({ rent: "2500", resale: "", edits: { ratePct: "5.5" } });
+  expect(ownFigures({ ...base, assumptions: "junk" as never })).toEqual({
+    rent: "",
+    resale: "",
+    edits: {},
   });
 });

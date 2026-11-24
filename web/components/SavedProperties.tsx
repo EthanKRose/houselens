@@ -11,7 +11,7 @@ const USE = { live: "Live in", rental: "Rental", flip: "Flip" } as const;
  * Properties saved in this browser: side-by-side table, open/remove, and backup export/import.
  * @param props - component props
  * @param props.list - saved properties
- * @param props.onChange - called with the new list after a remove or import
+ * @param props.onChange - applies a change (remove or import) to the stored list
  * @param props.onOpen - called to load a saved property into the analyzer
  * @param props.storageOk - false when the browser blocks storage
  * @returns the panel
@@ -23,7 +23,7 @@ export function SavedProperties({
   storageOk,
 }: {
   list: Property[];
-  onChange: (next: Property[]) => void;
+  onChange: (change: (list: Property[]) => Property[]) => void;
   onOpen: (p: Property) => void;
   storageOk: boolean;
 }) {
@@ -42,7 +42,8 @@ export function SavedProperties({
   const upload = async (f: File | undefined) => {
     if (!f) return;
     try {
-      onChange(importSaved(await f.text(), list));
+      const text = await f.text();
+      onChange((current) => importSaved(text, current));
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -122,7 +123,7 @@ export function SavedProperties({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onChange(list.filter((x) => x.id !== p.id))}
+                      onClick={() => onChange((l) => l.filter((x) => x.id !== p.id))}
                     >
                       Remove<span className="sr-only"> {p.address || `ZIP ${p.zip}`}</span>
                     </Button>

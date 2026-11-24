@@ -11,6 +11,12 @@ import polars as pl
 
 Status = Literal["ok", "unchanged", "failed"]
 
+# shortcut: a run that revises more existing rows than this fails, so one vendor re-estimating
+# its whole ZIP history (~9M rows) cannot grow the DB by hundreds of MB unnoticed; when that
+# happens for real, move ZIP data to its own DuckDB file in R2 (or keep only the months export
+# uses) and raise this.
+MAX_REVISED_ROWS = 2_000_000
+
 # Rows that are new, or whose value/flags differ from observation_latest; `collides` marks rows
 # whose (series, geo, period_start, run_date) key already exists (a same-day re-run).
 # shortcut: a run_date earlier than the latest vintage is still compared against latest and its
@@ -21,7 +27,7 @@ select n.*, exists (
     select 1 from observation o
     where o.series_id = n.series_id and o.geo_id = n.geo_id
       and o.period_start = n.period_start and o.vintage_date = $run_date
-) as collides
+) as collides, l.series_id is not null as revised
 from _new n left join observation_latest l using (series_id, geo_id, period_start)
 where l.series_id is null
    or n.value is distinct from l.value
@@ -110,6 +116,11 @@ def _write(
         return "failed", 0, f"coverage drop >5%: {detail}"
 
     con.execute(_CANDIDATES, {"run_date": run_date})
+    [(revised,)] = con.execute(
+        "select count(*) from _cand where revised and not collides"
+    ).fetchall()
+    if revised > MAX_REVISED_ROWS:
+        return "failed", 0, f"{revised} existing rows revised (limit {MAX_REVISED_ROWS})"
     [(rows,)] = con.execute(
         "insert into observation (series_id, geo_id, period_start, period_end, value,"
         " vintage_date, release_date, quality_flags)"
@@ -173,6 +184,8 @@ def write_vintage(
        or its ``quality_flags`` (order-insensitive) differ from ``observation_latest``; a flags
        change alone therefore creates a new vintage. A null ``release_date`` becomes
        ``run_date`` (first seen).
+       If more than ``MAX_REVISED_ROWS`` of those rows revise an existing key, the result is
+       ``failed`` with 0 rows.
     4. If a changed row's ``(series_id, geo_id, period_start, run_date)`` already exists (a
        same-day re-run), it is skipped and counted in the message; nothing is updated.
 
